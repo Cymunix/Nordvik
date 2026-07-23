@@ -826,7 +826,7 @@ const UI_COPY = {
     addLocationPlaceholder: 'Add city or town',
     addLocationAction: 'Add',
     noKnownLocations: 'No known locations yet. Add one or use current location.',
-    searchPlaceholder: 'Search for Collectables...',
+    searchPlaceholder: 'Search the catalog...',
     manageSubscription: 'Manage Subscription',
     myProfile: 'My Profile',
     myListings: 'My Listings',

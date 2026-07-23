@@ -54,5 +54,5 @@ export default function useValueHistory(userId, totalValue, totalItems) {
   const valueDeltaPct =
     baseValue && baseValue > 0 ? ((totalValue - baseValue) / baseValue) * 100 : null
 
-  return { supported, valueSeries, itemsSeries, valueDeltaPct, hasHistory: history.length > 1 }
+  return { supported, history, valueSeries, itemsSeries, valueDeltaPct, hasHistory: history.length > 1 }
 }

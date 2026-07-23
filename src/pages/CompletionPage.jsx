@@ -44,6 +44,18 @@ export default function CompletionPage({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [path, setPath] = useState([])
+  // Two independent ways to explore the SAME catalogue data. Category Explorer
+  // starts from catalogue categories; Franchise Explorer starts from franchises
+  // and then branches into the categories each franchise appears in. Remembered
+  // for the session. Completion is always computed dynamically per branch.
+  const [explorerMode, setExplorerMode] = useState(() => {
+    try { return sessionStorage.getItem('nv_completion_explorer') || 'category' } catch { return 'category' }
+  })
+  const switchExplorerMode = (mode) => {
+    setExplorerMode(mode)
+    setPath([])
+    try { sessionStorage.setItem('nv_completion_explorer', mode) } catch { /* ignore */ }
+  }
 
   const supportedCategories = ['Building Blocks', 'Toys', 'Sports Cards', 'Trading Cards']
 
@@ -241,14 +253,18 @@ export default function CompletionPage({
   let scoped = filteredSupportedRows
   for (const step of path) {
     if (step.type === 'category') scoped = scoped.filter(r => categoryOf(r) === step.value)
+    else if (step.type === 'franchise') scoped = scoped.filter(r => firstValue(r, ['franchise']) === step.value)
     else scoped = scoped.filter(r => firstValue(r, step.fields) === step.value)
   }
 
   const currentCategory = path.find(p => p.type === 'category')?.value || ''
+  const currentFranchise = path.find(p => p.type === 'franchise')?.value || ''
   const config = configs[currentCategory] || []
   const usedKeys = new Set(path.filter(p => p.type === 'level').map(p => p.key))
   const nextLevel = config.find(level => {
     if (usedKeys.has(level.key)) return false
+    // In Franchise Explorer the franchise is already fixed by the branch.
+    if (explorerMode === 'franchise' && level.key === 'franchise') return false
     const values = new Set(scoped.map(r => firstValue(r, level.fields)).filter(Boolean))
     return values.size > 0
   })
@@ -266,30 +282,68 @@ export default function CompletionPage({
     return { owned, total, percent: total ? (owned / total) * 100 : 0, collectedValue, estimatedCostToComplete }
   }
 
-  const makeGroups = () => {
-    if (!currentCategory) {
-      return [...ownedCategories].sort().map(name => {
-        const list = supportedRows.filter(r => categoryOf(r) === name)
-        return { name, rows: list, step: { type: 'category', value: name } }
-      })
-    }
-    if (!nextLevel) return []
+  // Group a list of rows by an arbitrary value selector into completion groups.
+  const groupBy = (list, valueOf, makeStep, sort) => {
     const map = new Map()
-    for (const row of scoped) {
-      const value = firstValue(row, nextLevel.fields)
+    for (const row of list) {
+      const value = valueOf(row)
       if (!value) continue
       if (!map.has(value)) map.set(value, [])
       map.get(value).push(row)
     }
     return [...map.entries()]
-      .map(([name, list]) => ({
-        name,
-        rows: list,
-        step: { type: 'level', key: nextLevel.key, label: nextLevel.label, fields: nextLevel.fields, value: name },
-      }))
+      .map(([name, rowsList]) => ({ name, rows: rowsList, step: makeStep(name) }))
       .filter(g => rollup(g.rows).total > 0)
-      .sort((a, b) => a.name.localeCompare(b.name))
+      .sort(sort || ((a, b) => a.name.localeCompare(b.name)))
   }
+
+  const makeGroups = () => {
+    // ── Franchise Explorer ──
+    if (explorerMode === 'franchise') {
+      if (!currentFranchise) {
+        // Top level: every franchise across the supported catalogue.
+        return groupBy(
+          filteredSupportedRows,
+          row => firstValue(row, ['franchise']),
+          name => ({ type: 'franchise', value: name }),
+          (a, b) => rollup(b.rows).owned - rollup(a.rows).owned || a.name.localeCompare(b.name),
+        )
+      }
+      if (!currentCategory) {
+        // Next: the categories this franchise appears in.
+        return groupBy(scoped, categoryOf, name => ({ type: 'category', value: name }))
+      }
+      // Deeper: fall through to the category's taxonomy levels below.
+    } else if (!currentCategory) {
+      // ── Category Explorer top level: catalogue categories ──
+      return [...ownedCategories].sort().map(name => {
+        const list = supportedRows.filter(r => categoryOf(r) === name)
+        return { name, rows: list, step: { type: 'category', value: name } }
+      })
+    }
+
+    if (!nextLevel) return []
+    return groupBy(
+      scoped,
+      row => firstValue(row, nextLevel.fields),
+      name => ({ type: 'level', key: nextLevel.key, label: nextLevel.label, fields: nextLevel.fields, value: name }),
+    )
+  }
+
+  // Catalogue totals per category (unique items) — lets empty category slots
+  // show "0 of X collected" rather than just "0 collected".
+  const categoryTotalByName = (() => {
+    const map = new Map()
+    for (const row of supportedRows) {
+      const name = categoryOf(row)
+      if (!name || !row.item_id) continue
+      if (!map.has(name)) map.set(name, new Set())
+      map.get(name).add(String(row.item_id))
+    }
+    const out = {}
+    for (const [name, ids] of map) out[normaliseCompletionCategoryName(name)] = ids.size
+    return out
+  })()
 
   const groups = makeGroups()
   const scopeRollup = rollup(scoped)
@@ -1068,9 +1122,29 @@ export default function CompletionPage({
           88%,100% { transform:translateX(55%); }
         }
       `}</style>
+      <div className="completion-explorer-toggle" role="group" aria-label="Completion explorer mode">
+        <button
+          type="button"
+          className={`completion-explorer-btn${explorerMode === 'category' ? ' is-active' : ''}`}
+          aria-pressed={explorerMode === 'category'}
+          onClick={() => switchExplorerMode('category')}
+        >
+          Category Explorer
+        </button>
+        <button
+          type="button"
+          className={`completion-explorer-btn${explorerMode === 'franchise' ? ' is-active' : ''}`}
+          aria-pressed={explorerMode === 'franchise'}
+          onClick={() => switchExplorerMode('franchise')}
+        >
+          Franchise Explorer
+        </button>
+      </div>
       {path.length > 0 && (
         <nav className="completion-breadcrumb" aria-label="Completion breadcrumb">
-          <button type="button" className="completion-crumb" onClick={() => setPath([])}>All categories</button>
+          <button type="button" className="completion-crumb" onClick={() => setPath([])}>
+            {explorerMode === 'franchise' ? 'All franchises' : 'All categories'}
+          </button>
           {path.map((step, index) => (
             <span key={`${step.type}-${step.key || ''}-${step.value}`} style={{ display: 'contents' }}>
               <span className="completion-crumb-sep" aria-hidden="true">›</span>
@@ -1082,10 +1156,10 @@ export default function CompletionPage({
         </nav>
       )}
 
-      {currentCategory && (
+      {(currentCategory || currentFranchise) && (
         <article className="catalog-card completion-context-header">
           <div className="completion-context-header-body">
-            <h3 className="completion-context-name">{path[path.length - 1]?.value || currentCategory}</h3>
+            <h3 className="completion-context-name">{path[path.length - 1]?.value || currentCategory || currentFranchise}</h3>
             <div className="completion-context-meta">
               <span>{scopeRollup.owned} / {scopeRollup.total} collected</span>
               <span aria-hidden="true">·</span>
@@ -1105,7 +1179,7 @@ export default function CompletionPage({
 
       {groups.length > 0 ? (
         <section className="completion-block-grid">
-          {(path.length === 0 ? NORDVIK_COMPLETION_CATEGORY_SLOTS : groups.map(group => ({
+          {((explorerMode === 'category' && path.length === 0) ? NORDVIK_COMPLETION_CATEGORY_SLOTS : groups.map(group => ({
             slot: null,
             name: group.name,
             image: null,
@@ -1168,7 +1242,7 @@ export default function CompletionPage({
                   <div className="completion-card-bottom">
                     <div className="completion-progress-track"><span style={{ width: '0%' }} /></div>
                     <div className="completion-nav-block-meta">
-                      <span>0 collected</span><span>Category</span>
+                      <span>{(() => { const tot = categoryTotalByName[normaliseCompletionCategoryName(slotConfig.name)]; return tot ? `0 of ${tot} collected` : '0 collected' })()}</span><span>Category</span>
                     </div>
                   </div>
                 </div>
