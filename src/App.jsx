@@ -12350,21 +12350,20 @@ function App() {
     }
     if (!setCopyIds.length) return
 
-    // For a LEGO set, find the minifig copies that came WITH these set copies
-    // (provenance: metadata.from_set.set_owned_copy_id) and offer to remove them.
-    let figCopyIds = []
-    if (item.categoryName === 'Building Blocks') {
-      const { data: figCopies } = await supabase.from('owned_copies')
-        .select('id')
-        .eq('user_id', currentUser.id)
-        .in('metadata->from_set->>set_owned_copy_id', setCopyIds)
-      figCopyIds = (figCopies || []).map(r => r.id)
-    }
+    // Find the child copies that came WITH these parent copies (provenance:
+    // metadata.from_set.set_owned_copy_id) and offer to remove them too. Adding
+    // works for every category (a LEGO set's minifigs, a Toy multipack's
+    // figures), so removal must too — not just Building Blocks.
+    const { data: figCopies } = await supabase.from('owned_copies')
+      .select('id')
+      .eq('user_id', currentUser.id)
+      .in('metadata->from_set->>set_owned_copy_id', setCopyIds)
+    const figCopyIds = (figCopies || []).map(r => r.id)
 
     let alsoRemoveFigs = false
     if (figCopyIds.length) {
       alsoRemoveFigs = window.confirm(
-        `Also remove the ${figCopyIds.length} connected minifig${figCopyIds.length > 1 ? 's' : ''} that came with this set?`,
+        `Also remove the ${figCopyIds.length} connected item${figCopyIds.length > 1 ? 's' : ''} that came with this?`,
       )
     }
 
