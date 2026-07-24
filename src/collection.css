@@ -355,18 +355,32 @@
   font-size: 0.85rem;
 }
 
-/* Topbar + manage dropdown */
-.nv-wish-topbar { display: flex; align-items: center; gap: 12px; }
-.nv-wish-topbar input[type="search"] {
-  flex: 1;
+/* Topbar + manage dropdown — force a single row (App.css .collection-topbar
+   otherwise stacks it into a column). */
+.nv-wishlist .nv-wish-topbar { display: flex; flex-direction: row; align-items: center; gap: 12px; flex-wrap: nowrap; }
+.nv-wish-search-wrap { position: relative; flex: 1; min-width: 0; }
+.nv-wish-search-ic {
+  position: absolute; left: 16px; top: 50%; transform: translateY(-50%);
+  color: var(--nv-ink-dim, #9fb0c6); font-size: 0.9rem; pointer-events: none; opacity: 0.8;
+}
+.nv-wishlist .nv-wish-topbar input[type="search"] {
+  width: 100%;
   background: #0c1524;
   border: 1px solid var(--nv-border, rgba(120, 150, 190, 0.16));
   color: var(--nv-ink, #e8eef7);
   border-radius: 12px;
-  padding: 13px 16px;
+  padding: 13px 16px 13px 42px;
   font-size: 0.9rem;
 }
-.nv-wish-topbar input[type="search"]::placeholder { color: var(--nv-ink-dim, #9fb0c6); }
+.nv-wishlist .nv-wish-topbar input[type="search"]::placeholder { color: var(--nv-ink-dim, #9fb0c6); }
+/* Manage Wishlist + View Catalogue Card pills dark (App.css paints them white). */
+.nv-wishlist .nv-wish-manage .catalog-action-pill,
+.nv-wishlist .nv-wish-actions .catalog-action-pill:not(.nv-wish-collect):not(.nv-wish-remove) {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--nv-border, rgba(120, 150, 190, 0.16));
+  color: var(--nv-ink, #e8eef7);
+}
+.nv-wish-manage { flex-shrink: 0; }
 /* Loading / error / empty-filter panels dark within the wishlist. */
 .nv-wishlist .catalog-loading-panel {
   background: var(--nv-panel, rgba(23, 34, 50, 0.72));

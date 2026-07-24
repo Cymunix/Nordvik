@@ -140,12 +140,15 @@ export default function WishlistPage({ scope }) {
 
           <div className="collection-main-pane">
             <div className="collection-topbar nv-wish-topbar">
-              <input
-                type="search"
-                placeholder="Search your wishlist…"
-                value={wishlistSearchQuery}
-                onChange={e => { setWishlistSearchQuery(e.target.value); setPage(1) }}
-              />
+              <div className="nv-wish-search-wrap">
+                <span className="nv-wish-search-ic" aria-hidden="true">&#128269;</span>
+                <input
+                  type="search"
+                  placeholder="Search your wishlist…"
+                  value={wishlistSearchQuery}
+                  onChange={e => { setWishlistSearchQuery(e.target.value); setPage(1) }}
+                />
+              </div>
               <div className="nv-wish-manage">
                 <button type="button" className="catalog-action-pill" onClick={() => setManageOpen(o => !o)}>
                   &#8943; Manage Wishlist &#9662;
