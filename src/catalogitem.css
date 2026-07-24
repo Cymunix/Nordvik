@@ -298,6 +298,35 @@
 /* Market card's built-in image moved to the hero — hide the duplicate. */
 .catalog-detail-screen .catalog-detail-market-image-wrap { display: none; }
 
+/* ═══════════════ Overview: 2-column dashboard grid ═══════════════ */
+.catalog-detail-screen .cd-ov-grid {
+  display: grid;
+  grid-template-columns: 1.7fr 1fr;
+  gap: 18px;
+  align-items: start;
+  margin-bottom: 16px;
+}
+.catalog-detail-screen .cd-ov-grid > * { min-width: 0; }
+/* Left column: market data + item information. */
+.catalog-detail-screen .cd-ov-grid > .catalog-item-edit-panel { grid-column: 1 / -1; }
+.catalog-detail-screen .cd-ov-grid > .catalog-detail-market-card { grid-column: 1; }
+.catalog-detail-screen .cd-ov-grid > .catalog-detail-card-info { grid-column: 1; }
+/* Right column: available listings + local availability, stacked (not side by side). */
+.catalog-detail-screen .cd-ov-grid > .catalog-detail-grid {
+  grid-column: 2;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
+}
+/* Already shown in the hero / collection panel — hide the overview duplicates. */
+.catalog-detail-screen .cd-ov-grid > .catalog-detail-description-band,
+.catalog-detail-screen .cd-ov-grid > .catalog-detail-images-section { display: none; }
+
+@media (max-width: 1080px) {
+  .catalog-detail-screen .cd-ov-grid { grid-template-columns: 1fr; }
+  .catalog-detail-screen .cd-ov-grid > * { grid-column: 1 !important; }
+}
+
 @media (max-width: 1080px) {
   .catalog-detail-screen .catalog-detail-hero { grid-template-columns: 1fr; }
   .catalog-detail-screen .catalog-detail-collection-panel { position: static; }

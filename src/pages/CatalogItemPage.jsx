@@ -499,6 +499,7 @@ export default function CatalogItemPage({ scope }) {
 
                 {catalogDetailViewTab === 'overview' ? (
                   <>
+                    <div className="cd-ov-grid">
                     {isCatalogItemEditMode && (
                       <section className="catalog-card catalog-detail-section catalog-item-edit-panel">
                     <div className="catalog-item-edit-header">
@@ -1634,6 +1635,7 @@ export default function CatalogItemPage({ scope }) {
                     </div>
                       </section>
                     )}
+                    </div>
 
                     <div className="catalog-detail-cartbar">
                       <button type="button" className="catalog-detail-cartbtn">Add to Cart</button>
