@@ -154,6 +154,32 @@
   border: 1px solid var(--nv-border, rgba(120, 150, 190, 0.16));
 }
 
+/* ── Collection panel (right of the title) — mockup's "YOUR COLLECTION" card ── */
+.catalog-detail-screen .catalog-detail-actions {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  width: 320px;
+  max-width: 320px;
+  padding: 18px;
+  background: var(--nv-panel, rgba(23, 34, 50, 0.72));
+  border: 1px solid var(--nv-border, rgba(120, 150, 190, 0.16));
+  border-radius: 14px;
+}
+.catalog-detail-screen .catalog-detail-actions .catalog-detail-btn {
+  width: 100%;
+  justify-content: center;
+  text-align: center;
+}
+.catalog-detail-screen .catalog-detail-owned-link {
+  color: var(--nv-cyan, #6fd3e6);
+  text-align: center;
+  text-decoration: none;
+  font-size: 0.85rem;
+  margin-top: 2px;
+}
+.catalog-detail-screen .catalog-detail-owned-link:hover { text-decoration: underline; }
+
 /* ── Sticky cart bar ── */
 .catalog-detail-screen .catalog-detail-cartbar {
   background: var(--nv-panel-solid, #131d2b);
