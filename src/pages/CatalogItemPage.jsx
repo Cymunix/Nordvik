@@ -443,58 +443,31 @@ export default function CatalogItemPage({ scope }) {
                 </header>
 
                 <div className="catalog-detail-tabs" role="tablist" aria-label="Item detail tabs">
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={catalogDetailViewTab === 'overview'}
-                    className={`catalog-detail-tab-btn ${catalogDetailViewTab === 'overview' ? 'active' : ''}`}
-                    onClick={() => setCatalogDetailViewTab('overview')}
-                  >
-                    Overview
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={catalogDetailViewTab === 'insights'}
-                    className={`catalog-detail-tab-btn ${catalogDetailViewTab === 'insights' ? 'active' : ''}`}
-                    onClick={() => setCatalogDetailViewTab('insights')}
-                  >
-                    Insights
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={catalogDetailViewTab === 'reviews'}
-                    className={`catalog-detail-tab-btn ${catalogDetailViewTab === 'reviews' ? 'active' : ''}`}
-                    onClick={() => setCatalogDetailViewTab('reviews')}
-                  >
-                    Reviews ({catalogDetailReviews.length})
-                  </button>
                   {(() => {
                     const relCount = catalogDetailIncludes.length + catalogDetailIncludedIn.length
-                    return (
+                    const tabs = [
+                      { key: 'overview', label: 'Overview' },
+                      { key: 'marketData', label: 'Market Data' },
+                      { key: 'salesHistory', label: 'Sales History' },
+                      { key: 'listings', label: 'Listings' },
+                      { key: 'insights', label: 'Insights' },
+                      { key: 'reviews', label: `Reviews (${catalogDetailReviews.length})` },
+                      { key: 'related', label: `Related Items${relCount ? ` (${relCount})` : ''}` },
+                      { key: 'images', label: `Images${catalogItemImages.length ? ` (${catalogItemImages.length})` : ''}` },
+                    ]
+                    return tabs.map((tab) => (
                       <button
+                        key={tab.key}
                         type="button"
                         role="tab"
-                        aria-selected={catalogDetailViewTab === 'related'}
-                        className={`catalog-detail-tab-btn ${catalogDetailViewTab === 'related' ? 'active' : ''}`}
-                        onClick={() => setCatalogDetailViewTab('related')}
+                        aria-selected={catalogDetailViewTab === tab.key}
+                        className={`catalog-detail-tab-btn ${catalogDetailViewTab === tab.key ? 'active' : ''}`}
+                        onClick={() => setCatalogDetailViewTab(tab.key)}
                       >
-                        Related Items{relCount ? ` (${relCount})` : ''}
+                        {tab.label}
                       </button>
-                    )
+                    ))
                   })()}
-                  {isPlatformAdmin && (
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={catalogDetailViewTab === 'manageImages'}
-                      className={`catalog-detail-tab-btn ${catalogDetailViewTab === 'manageImages' ? 'active' : ''}`}
-                      onClick={() => setCatalogDetailViewTab('manageImages')}
-                    >
-                      Images{catalogItemImages.length ? ` (${catalogItemImages.length})` : ''}
-                    </button>
-                  )}
                 </div>
 
                 {catalogDetailViewTab === 'overview' ? (
@@ -1918,6 +1891,67 @@ export default function CatalogItemPage({ scope }) {
                         </>
                       )
                     })()}
+                  </section>
+                ) : catalogDetailViewTab === 'marketData' ? (
+                  <section className="catalog-card catalog-detail-section" role="tabpanel" aria-label="Market data">
+                    <h3>Market Data &amp; Pricing</h3>
+                    <div className="catalog-detail-metrics">
+                      <div className="catalog-detail-metric-box"><span>Value (CAD)</span><strong>{metric30Day}</strong><em>30 Day Avg</em></div>
+                      <div className="catalog-detail-metric-box"><span>All-Time High (CAD)</span><strong>{metricAllTimeHigh}</strong></div>
+                      <div className="catalog-detail-metric-box"><span>Low Listing Price (CAD)</span><strong>{metricLowListing}</strong></div>
+                    </div>
+                    <p className="catalog-detail-hero-desc" style={{ marginTop: 14, color: 'var(--nv-ink-dim)' }}>Full per-condition and variant pricing is shown on the Overview tab.</p>
+                  </section>
+                ) : catalogDetailViewTab === 'salesHistory' ? (
+                  <section className="catalog-card catalog-detail-section" role="tabpanel" aria-label="Sales history">
+                    <h3>Recent Sales</h3>
+                    {Array.isArray(selectedCatalogItemMetadata.sales_history) && selectedCatalogItemMetadata.sales_history.length > 0 ? (
+                      <div className="cd-sales-list">
+                        {selectedCatalogItemMetadata.sales_history.slice(0, 30).map((s, i) => (
+                          <div key={i} className="catalog-detail-list-row">
+                            <span>{s.date || s.sold_at || s.sale_date || '—'}</span>
+                            <span>{s.condition || s.grade || 'New'}</span>
+                            <strong>{s.price != null ? (typeof s.price === 'number' ? formatUsd(s.price) : s.price) : '—'}</strong>
+                            <span>{s.source || s.marketplace || s.seller || '—'}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="catalog-detail-empty-state"><strong>No recent sales</strong><p>No sales history is recorded for this item yet.</p></div>
+                    )}
+                  </section>
+                ) : catalogDetailViewTab === 'listings' ? (
+                  <section className="catalog-card catalog-detail-section" role="tabpanel" aria-label="Listings">
+                    <h3>Available Listings</h3>
+                    {listings.length > 0 ? (
+                      <div className="cd-full-list">
+                        {listings.map((listing, i) => (
+                          <div key={i} className="catalog-detail-list-row">
+                            <div className="catalog-detail-seller-col">
+                              <strong>{listing.seller || listing.source || listing.marketplace || 'Listing'}</strong>
+                              {listing.condition && <p className="catalog-detail-listing-condition">{listing.condition}</p>}
+                            </div>
+                            {Number.isFinite(Number(listing.price)) && <strong>{formatUsd(listing.price)}</strong>}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="catalog-detail-empty-state"><strong>No listings currently available</strong><p>There are no active listings for this item right now.</p></div>
+                    )}
+                  </section>
+                ) : catalogDetailViewTab === 'images' ? (
+                  <section className="catalog-card catalog-detail-section" role="tabpanel" aria-label="Images">
+                    <h3>Images</h3>
+                    {catalogItemImages.length > 0 ? (
+                      <div className="catalog-detail-images-row">
+                        {catalogItemImages.map((img) => {
+                          const url = img.image_path.startsWith('http') ? img.image_path : supabase.storage.from('item-images').getPublicUrl(img.image_path).data?.publicUrl
+                          return <img key={img.item_image_id} src={url} alt="" className="catalog-detail-item-image catalog-zoomable" onClick={() => url && openLightbox(url)} />
+                        })}
+                      </div>
+                    ) : (
+                      <div className="catalog-detail-empty-state"><strong>No images</strong><p>This item has no images yet.</p></div>
+                    )}
                   </section>
                 ) : isPlatformAdmin ? (
                   <section className="catalog-card catalog-detail-section manage-images-panel" role="tabpanel" aria-label="Manage images">
