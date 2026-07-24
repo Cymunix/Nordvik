@@ -76,8 +76,8 @@ export default function WishlistPage({ scope }) {
           <p className="subtitle catalog-subtitle">Items you want — add them to your collection when you get them.</p>
         </div>
         <div className="catalog-actions">
-          <button type="button" className="catalog-action-pill nv-wish-browse" onClick={handleOpenCatalog}>
-            &#9744; Browse Catalogue
+          <button type="button" className="nv-btn nv-btn-primary" onClick={handleOpenCatalog}>
+            Browse Catalogue
           </button>
         </div>
       </div>
