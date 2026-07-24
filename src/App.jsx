@@ -620,14 +620,22 @@ const CATALOG_DYNAMIC_FIELDS_BY_SUBCATEGORY = {
     // The base card number stays in items.card_number; cards sharing it within
     // the same franchise are variants of one group.
     { key: 'variant_type', label: 'Variant Type', type: 'text' },
-    { key: 'card_color', label: 'Card Colour', type: 'text' },
+    { key: 'card_color', label: 'Card Colour', type: 'text', aliases: ['card_color', 'colour', 'color'] },
+    // The One Piece card type (Leader / Character / Event / Stage). Distinct from
+    // the NORDVIK taxonomy "Item Type" — a file may carry both columns.
+    { key: 'card_type', label: 'Card Type', type: 'text' },
     { key: 'attribute', label: 'Attribute', type: 'text' },
     { key: 'card_cost', label: 'Card Cost', type: 'number' },
     { key: 'card_power', label: 'Card Power', type: 'number' },
     { key: 'counter_amount', label: 'Counter Amount', type: 'number' },
     { key: 'life', label: 'Life', type: 'number' },
-    { key: 'sub_types', label: 'Collection', type: 'text' },
+    { key: 'sub_types', label: 'Collection', type: 'text', aliases: ['sub_types', 'subtypes'] },
     { key: 'market_price', label: 'Market Price', type: 'number' },
+    // Variant provenance from the source export. Grouping itself is derived from
+    // the shared base card number (see items.card_number); these keep the origin.
+    { key: 'variant_group', label: 'Variant Group', type: 'text' },
+    { key: 'has_variants', label: 'Has Variants', type: 'text' },
+    { key: 'variant_count', label: 'Variant Count', type: 'number' },
   ],
 }
 
@@ -8822,9 +8830,19 @@ function App() {
     const fieldIndex = {}        // canonical field -> column index
     const dynamicIndex = {}      // per-game dynamic-field key -> column index
     const unknownHeaders = []    // { header, index } for unrecognised columns
-    // Per-game dynamic-field keys (e.g. One Piece: card_color, card_cost, …) —
+    // Per-game dynamic-field defs (e.g. One Piece: card_color, card_cost, …) —
     // columns matching these are captured into dynamic_fields, not dropped.
-    const dynamicKeys = new Set(getCatalogDynamicFieldDefs(categoryName, subcategoryName).map((d) => d.key))
+    // Match on the internal key AND the human-readable label AND any aliases, so
+    // a display-name export ("Card Colour", "Collection") maps as readily as a
+    // raw one ("card_color", "sub_types"). Colour/color are treated as equal.
+    const normDyn = (s) => BULK_HEADER_NORMALIZE(s).replace(/colour/g, 'color')
+    const dynamicByNorm = {}   // normalized header -> canonical dynamic-field key
+    for (const d of getCatalogDynamicFieldDefs(categoryName, subcategoryName)) {
+      for (const name of [d.key, d.label, ...(d.aliases || [])]) {
+        const nk = normDyn(name)
+        if (nk && dynamicByNorm[nk] === undefined) dynamicByNorm[nk] = d.key
+      }
+    }
     rawHeaders.forEach((raw, i) => {
       const norm = BULK_HEADER_NORMALIZE(raw)
       const field = BULK_ALIAS_TO_FIELD[norm]
@@ -8833,8 +8851,9 @@ function App() {
       // accepted when the selected category matches. So a Toys import recognises only
       // its valid fields; a stray LEGO/card column is surfaced as unknown, not mapped.
       const allowedForCategory = def && (!def.categories || !categoryName || def.categories.includes(categoryName))
+      const dynKey = dynamicByNorm[normDyn(raw)]
       if (field && allowedForCategory && fieldIndex[field] === undefined) fieldIndex[field] = i
-      else if (dynamicKeys.has(norm) && dynamicIndex[norm] === undefined) dynamicIndex[norm] = i
+      else if (dynKey && dynamicIndex[dynKey] === undefined) dynamicIndex[dynKey] = i
       else if (norm) unknownHeaders.push({ header: raw.trim(), index: i })
     })
     const unknownList = unknownHeaders.map(u => u.header)
