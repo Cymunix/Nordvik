@@ -247,7 +247,7 @@ export default function CatalogItemPage({ scope }) {
                 className="catalog-action-pill"
                 onClick={() => { setCurrentScreen(catalogItemOrigin || 'catalog') }}
               >
-                {catalogItemOrigin === 'profile' ? '← Back to Profile' : '← Back to Catalog'}
+                {catalogItemOrigin === 'profile' ? '← Back to Profile' : '← Back to Catalogue'}
               </button>
 
               {catalogSetNavItems.length > 1 && (
