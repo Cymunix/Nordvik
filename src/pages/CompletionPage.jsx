@@ -101,10 +101,13 @@ export default function CompletionPage({
     'Trading Cards': [
       // Subcategory IS the franchise for Trading Cards — no separate franchise level.
       { key: 'subcategory', label: 'Game / Franchise', fields: ['subcategory'] },
-      { key: 'manufacturer', label: 'Manufacturer', fields: ['subset', 'subfranchise', 'subtheme'] },
-      { key: 'productLine', label: 'Product Line', fields: ['product_line', 'product_line_name', 'product_lines', 'collectible_set'] },
+      // The SET (e.g. One Piece "Romance Dawn") is the natural completion unit; it
+      // lives in the Property field (item_properties). This is the key drill.
+      { key: 'property', label: 'Set', fields: ['property'] },
       { key: 'itemType', label: 'Item Type', fields: ['brand'] },
       { key: 'series', label: 'Series', fields: ['print_type', 'series'] },
+      // (Subfranchise / Product Line are single-value or empty for card games, so
+      // they aren't offered as drill levels here — Set is the meaningful unit.)
     ],
   }
 
