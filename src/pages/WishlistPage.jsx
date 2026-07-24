@@ -39,7 +39,7 @@ export default function WishlistPage({ scope }) {
               </div>
               <div className="catalog-actions">
                 <button type="button" className="catalog-action-pill" onClick={handleOpenCatalog}>
-                  Browse Catalog
+                  Browse Catalogue
                 </button>
               </div>
             </div>
@@ -101,9 +101,9 @@ export default function WishlistPage({ scope }) {
                     <div className="catalog-card catalog-loading-panel">{wishlistLoadError}</div>
                   ) : wishlistItems.length === 0 ? (
                     <div className="settings-empty-state">
-                      <p className="subtitle">Your wishlist is empty. Browse the catalog and add items you want.</p>
+                      <p className="subtitle">Your wishlist is empty. Browse the catalogue and add items you want.</p>
                       <button type="button" className="auth-submit" onClick={handleOpenCatalog}>
-                        Browse Catalog
+                        Browse Catalogue
                       </button>
                     </div>
                   ) : filteredWishlistItems.length === 0 ? (
@@ -175,7 +175,7 @@ export default function WishlistPage({ scope }) {
                                 className="catalog-action-pill"
                                 onClick={() => handleOpenCatalogItem(item)}
                               >
-                                View Catalog Card
+                                View Catalogue Card
                               </button>
 
                               {wishlistRemoveConfirmId === item.id ? (

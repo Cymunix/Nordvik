@@ -99,8 +99,8 @@ export default function CompletionPage({
       { key: 'series', label: 'Series', fields: ['print_type', 'series'] },
     ],
     'Trading Cards': [
-      { key: 'subcategory', label: 'Game / Type', fields: ['subcategory'] },
-      { key: 'franchise', label: 'Franchise', fields: ['franchise'] },
+      // Subcategory IS the franchise for Trading Cards — no separate franchise level.
+      { key: 'subcategory', label: 'Game / Franchise', fields: ['subcategory'] },
       { key: 'manufacturer', label: 'Manufacturer', fields: ['subset', 'subfranchise', 'subtheme'] },
       { key: 'productLine', label: 'Product Line', fields: ['product_line', 'product_line_name', 'product_lines', 'collectible_set'] },
       { key: 'itemType', label: 'Item Type', fields: ['brand'] },

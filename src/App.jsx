@@ -184,6 +184,19 @@ const CATEGORY_LABEL_OVERRIDES = {
     property: 'Property',
     subject: 'Subject(s)',
   },
+  // Trading Cards: the Subcategory IS the franchise (Pokémon, One Piece, …).
+  // There is no separate franchise classification for this category.
+  'Trading Cards': {
+    subcategory: 'Game / Franchise',
+    franchise: 'Franchise',
+    brand: 'Item Type',
+    collectibleSet: 'Set',
+    subset: 'Subset',
+    productLine: 'Product Line',
+    property: 'Property',
+    subject: 'Subject(s)',
+    hideFranchise: true,
+  },
 }
 const DEFAULT_CATEGORY_LABELS = {
   subcategory: 'Subcategory',
@@ -213,22 +226,22 @@ const BULK_FIELD_MAP = {
   subcategory:     { aliases: ['subcategory', 'subcategories', 'sub_category'], band: 'taxonomy', label: 'Subcategory' },
   franchise:       { aliases: ['franchise', 'franchises', 'franchise_name'], band: 'taxonomy', label: 'Franchise' },
   subfranchise:    { aliases: ['subfranchise', 'subfranchises', 'subtheme', 'sub_theme', 'subset', 'subset_name'], band: 'taxonomy', label: 'Subfranchise' },
-  property:        { aliases: ['property', 'properties'], band: 'taxonomy', label: 'Property' },
+  property:        { aliases: ['property', 'properties', 'set_name'], band: 'taxonomy', label: 'Property' },
   product_line:    { aliases: ['product_line', 'product_lines', 'productline'], band: 'taxonomy', label: 'Product Line' },
   manufacturer:    { aliases: ['manufacturer', 'brand/manufacturer', 'brand_manufacturer', 'brandmanufacturer', 'maker'], band: 'taxonomy', label: 'Brand/Manufacturer' },
-  item_type:       { aliases: ['item_type', 'item_types', 'itemtype', 'brand', 'brand_name'], band: 'taxonomy', label: 'Item Type' },
+  item_type:       { aliases: ['item_type', 'item_types', 'itemtype', 'brand', 'brand_name', 'card_type'], band: 'taxonomy', label: 'Item Type' },
   series:          { aliases: ['series', 'series_name'], band: 'taxonomy', label: 'Series' },
   item_name:       { aliases: ['item', 'items', 'item_name', 'title'], band: 'taxonomy', label: 'Item' },
   // ── Universal metadata ──
-  subject:         { aliases: ['subject', 'subjects', 'subject_name', 'character', 'minifig_name', 'fig_name'], band: 'universal', label: 'Subject(s)' },
-  description:     { aliases: ['description', 'desc', 'notes'], band: 'universal', label: 'Description' },
+  subject:         { aliases: ['subject', 'subjects', 'subject_name', 'card_name', 'character', 'minifig_name', 'fig_name'], band: 'universal', label: 'Subject(s)' },
+  description:     { aliases: ['description', 'desc', 'notes', 'card_text'], band: 'universal', label: 'Description' },
   id_number:       { aliases: ['id_number', 'idnumber', 'id_no', 'reference'], band: 'universal', label: 'ID Number' },
   release_year:    { aliases: ['release_year', 'year'], band: 'universal', label: 'Release Year' },
   availability:    { aliases: ['availability', 'available'], band: 'universal', label: 'Availability' },
   barcode:         { aliases: ['barcode', 'barcodes', 'upc', 'ean', 'barcode/upc', 'upc/barcode'], band: 'universal', label: 'Barcode' },
   includes:        { aliases: ['includes', 'contains'], band: 'universal', label: 'Includes' },
   included_in:     { aliases: ['included_in', 'parent_set', 'parent_set_number', 'parent_set_bricklink_id'], band: 'universal', label: 'Included In' },
-  image_url:       { aliases: ['image_url', 'img_url', 'image', 'photo_url', 'photo'], band: 'universal', label: 'Image URL' },
+  image_url:       { aliases: ['image_url', 'img_url', 'image', 'photo_url', 'photo', 'card_image'], band: 'universal', label: 'Image URL' },
   // ── Building Blocks attributes ──
   lego_set_number: { aliases: ['lego_set_number', 'set_number', 'set_num', 'lego_number', 'set_id'], band: 'attribute', categories: ['Building Blocks'], label: 'Set Number' },
   piece_count:     { aliases: ['piece_count', 'pieces', 'parts', 'num_parts'], band: 'attribute', categories: ['Building Blocks', 'Toys'], label: 'Piece Count' },
@@ -238,7 +251,7 @@ const BULK_FIELD_MAP = {
   minifig_code:    { aliases: ['minifig_code', 'internal_code'], band: 'attribute', categories: ['Building Blocks'], itemTypes: ['minifigure', 'minifig', 'minifigs'], label: 'Minifig Code' },
   species:         { aliases: ['species', 'species_name', 'race'], band: 'attribute', categories: ['Building Blocks'], itemTypes: ['minifigure', 'minifig', 'minifigs'], label: 'Species' },
   // ── Trading / Sports card attributes ──
-  card_number:     { aliases: ['card_number', 'card_num'], band: 'attribute', categories: ['Trading Cards', 'Sports Cards'], label: 'Card Number' },
+  card_number:     { aliases: ['card_number', 'card_num', 'card_set_id'], band: 'attribute', categories: ['Trading Cards', 'Sports Cards'], label: 'Card Number' },
   print_count:     { aliases: ['print_count', 'print_run'], band: 'attribute', categories: ['Trading Cards', 'Sports Cards'], label: 'Print Count' },
   print_type:      { aliases: ['print_type', 'print_type_name', 'variant'], band: 'attribute', categories: ['Trading Cards', 'Sports Cards'], label: 'Print Type' },
   rarity:          { aliases: ['rarity', 'rarity_name'], band: 'attribute', categories: ['Trading Cards', 'Sports Cards'], label: 'Rarity' },
@@ -596,6 +609,63 @@ const CATALOG_DYNAMIC_FIELD_DEFINITIONS = {
   ],
 }
 
+// Per-game (subcategory) dynamic-field overrides. A Trading Cards subcategory
+// with its own stat block (e.g. the One Piece Card Game) defines its fields
+// here; they take precedence over the category-level definitions above. All
+// values persist in the item's dynamic_fields JSONB — no schema change.
+const CATALOG_DYNAMIC_FIELDS_BY_SUBCATEGORY = {
+  'One Piece': [
+    { key: 'set_id', label: 'Set ID', type: 'text' },
+    // Variant descriptor (Standard / Parallel / Alternate Art / Manga Rare …).
+    // The base card number stays in items.card_number; cards sharing it within
+    // the same franchise are variants of one group.
+    { key: 'variant_type', label: 'Variant Type', type: 'text' },
+    { key: 'card_color', label: 'Card Colour', type: 'text' },
+    { key: 'attribute', label: 'Attribute', type: 'text' },
+    { key: 'card_cost', label: 'Card Cost', type: 'number' },
+    { key: 'card_power', label: 'Card Power', type: 'number' },
+    { key: 'counter_amount', label: 'Counter Amount', type: 'number' },
+    { key: 'life', label: 'Life', type: 'number' },
+    { key: 'sub_types', label: 'Collection', type: 'text' },
+    { key: 'market_price', label: 'Market Price', type: 'number' },
+  ],
+}
+
+// Resolve the dynamic-field definitions for a category, preferring a
+// subcategory-specific set when one exists.
+const getCatalogDynamicFieldDefs = (categoryName, subcategoryName) =>
+  (subcategoryName && CATALOG_DYNAMIC_FIELDS_BY_SUBCATEGORY[subcategoryName]) ||
+  CATALOG_DYNAMIC_FIELD_DEFINITIONS[categoryName] ||
+  []
+
+// Map a One Piece TCG API (optcgapi) JSON array into the bulk importer's CSV —
+// ONE row per card object, not per text line. Franchise/subcategory/subfranchise
+// are fixed for this format (it's the One Piece card game).
+const OPTCG_CSV_CELL = (v) => {
+  const s = v == null ? '' : String(v)
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+}
+const optcgJsonToCsv = (records) => {
+  const headers = ['subject', 'card_number', 'rarity', 'description', 'item_type', 'franchise', 'manufacturer', 'subtheme']
+  const out = [headers.join(',')]
+  for (const r of records) {
+    if (!r || typeof r !== 'object') continue
+    const name = r.card_name || r.name
+    if (!name) continue
+    out.push([
+      name,
+      r.card_set_id || r.card_number || '',
+      r.rarity || '',
+      r.card_text || r.description || '',
+      r.card_type || '',
+      'One Piece',
+      'One Piece',
+      'The One Piece Card Game',
+    ].map(OPTCG_CSV_CELL).join(','))
+  }
+  return out.join('\n')
+}
+
 const CATALOG_PEOPLE_ROLES_BY_CATEGORY = {
   'Trading Cards': ['Artist', 'Illustrator', 'Writer'],
   'Sports Cards': ['Photographer', 'Artist'],
@@ -606,8 +676,8 @@ const CATALOG_PEOPLE_ROLES_BY_CATEGORY = {
   'Video Games': ['Developer', 'Publisher', 'Designer', 'Artist'],
 }
 
-const buildCatalogDynamicDefaults = (categoryName) => {
-  const definitions = CATALOG_DYNAMIC_FIELD_DEFINITIONS[categoryName] || []
+const buildCatalogDynamicDefaults = (categoryName, subcategoryName) => {
+  const definitions = getCatalogDynamicFieldDefs(categoryName, subcategoryName)
   return definitions.reduce((accumulator, field) => {
     accumulator[field.key] = field.type === 'boolean' ? false : ''
     return accumulator
@@ -826,7 +896,7 @@ const UI_COPY = {
     addLocationPlaceholder: 'Add city or town',
     addLocationAction: 'Add',
     noKnownLocations: 'No known locations yet. Add one or use current location.',
-    searchPlaceholder: 'Search the catalog...',
+    searchPlaceholder: 'Search the catalogue...',
     manageSubscription: 'Manage Subscription',
     myProfile: 'My Profile',
     myListings: 'My Listings',
@@ -836,7 +906,7 @@ const UI_COPY = {
     startCollecting: 'Start Collecting',
     cart: 'Cart',
     myCollection: 'My Collection',
-    catalog: 'Catalog',
+    catalog: 'Catalogue',
     stores: 'Stores',
     wishlist: 'Wishlist',
     sales: 'Sales',
@@ -846,7 +916,7 @@ const UI_COPY = {
     greetingAfternoon: 'Good Afternoon',
     greetingEvening: 'Good Evening',
     languageSelectorAria: 'Language selector',
-    catalogPageTitle: 'Catalog',
+    catalogPageTitle: 'Catalogue',
     catalogPageSubtitle: 'Browse items across all categories. Use the left filters to narrow results.',
     filtersLabel: 'Filters',
     clearAction: 'Clear',
@@ -889,10 +959,10 @@ const UI_COPY = {
     selectCategoryFirstAdmin: 'Select category first',
     selectSubcategoryFirstAdmin: 'Select subcategory first',
     selectFranchiseFirstAdmin: 'Select franchise first',
-    adminItemCreated: 'Catalog item created.',
-    adminItemCreatedVariantWarning: 'Catalog item created, but variants could not be saved.',
-    adminItemCreatedPeopleWarning: 'Catalog item created, but credits could not be saved.',
-    adminItemCreatedMinifigWarning: 'Catalog item created, but minifigures could not be saved.',
+    adminItemCreated: 'Catalogue item created.',
+    adminItemCreatedVariantWarning: 'Catalogue item created, but variants could not be saved.',
+    adminItemCreatedPeopleWarning: 'Catalogue item created, but credits could not be saved.',
+    adminItemCreatedMinifigWarning: 'Catalogue item created, but minifigures could not be saved.',
     adminItemCreateFailed: 'Could not create catalog item right now.',
     brandLabel: 'Brand',
     noBrandOption: '— No brand —',
@@ -1830,6 +1900,7 @@ function App() {
   const [catalogReloadToken, setCatalogReloadToken] = useState(0)
   const [catalogPage, setCatalogPage] = useState(1)
   const [catalogPageInput, setCatalogPageInput] = useState('1')
+  const [catalogPageSize, setCatalogPageSize] = useState(CATALOG_PAGE_SIZE)
   const [catalogViewMode, setCatalogViewMode] = useState('grid')
   const [isCatalogBulkEditMode, setIsCatalogBulkEditMode] = useState(false)
   const [catalogBulkSelectedIds, setCatalogBulkSelectedIds] = useState(new Set())
@@ -2282,7 +2353,7 @@ function App() {
         || catalogFranchiseBrands.find((franchiseBrand) => franchiseBrand.name === catalogFranchise)
         || null
   const filteredCatalogItems = catalogItems
-  const catalogTotalPages = Math.max(1, Math.ceil(catalogTotalItemCount / CATALOG_PAGE_SIZE))
+  const catalogTotalPages = Math.max(1, Math.ceil(catalogTotalItemCount / catalogPageSize))
   const paginatedCatalogItems = catalogItems
   const paginatedCatalogItemIds = paginatedCatalogItems.map((item) => item.id).filter(Boolean)
   const selectedCatalogVisibleCount = paginatedCatalogItemIds.filter((itemId) => catalogBulkSelectedIds.has(itemId)).length
@@ -2585,7 +2656,7 @@ function App() {
   const catalogAdminConditionOptions = CARD_CONDITION_CATEGORIES.has(selectedCatalogAdminCategoryName)
     ? CARD_CONDITION_SCALE
     : []
-  const catalogAdminDynamicFieldDefinitions = CATALOG_DYNAMIC_FIELD_DEFINITIONS[selectedCatalogAdminCategoryName] || []
+  const catalogAdminDynamicFieldDefinitions = getCatalogDynamicFieldDefs(selectedCatalogAdminCategoryName, selectedCatalogAdminSubcategoryObj?.name)
   const catalogAdminPeopleRoles = CATALOG_PEOPLE_ROLES_BY_CATEGORY[selectedCatalogAdminCategoryName] || []
   const catalogAdminShowPeople = catalogAdminPeopleRoles.length > 0
   const catalogAdminShowMinifigs = CATALOG_MINIFIG_CATEGORIES.has(selectedCatalogAdminCategoryName)
@@ -3732,8 +3803,8 @@ function App() {
       setCatalogLoadError('')
 
       const queryText = siteSearchQuery.trim()
-      const queryStart = (catalogPage - 1) * CATALOG_PAGE_SIZE
-      const queryEnd = queryStart + CATALOG_PAGE_SIZE - 1
+      const queryStart = (catalogPage - 1) * catalogPageSize
+      const queryEnd = queryStart + catalogPageSize - 1
 
       let itemsQuery = supabase
         .from('item_details')
@@ -3929,7 +4000,7 @@ function App() {
       try {
         itemsResult = await itemsQuery
       } catch (err) {
-        setCatalogLoadError('Catalog query timed out or failed.')
+        setCatalogLoadError('Catalogue query timed out or failed.')
         setCatalogItems([])
         setCatalogTotalItemCount(0)
         setIsCatalogLoading(false)
@@ -3991,6 +4062,7 @@ function App() {
     catalogMaxYear,
     catalogMinYear,
     catalogPage,
+    catalogPageSize,
     catalogPrintTypeId,
     catalogReloadToken,
     catalogSetId,
@@ -4566,7 +4638,7 @@ function App() {
   }, [catalogAdminCategoryId, currentScreen, isPlatformAdmin])
 
   useEffect(() => {
-    setCatalogAdminDynamicFields(buildCatalogDynamicDefaults(selectedCatalogAdminCategoryName))
+    setCatalogAdminDynamicFields(buildCatalogDynamicDefaults(selectedCatalogAdminCategoryName, selectedCatalogAdminSubcategoryObj?.name))
     setCatalogAdminPeopleRows(buildDefaultCatalogPeopleRows(selectedCatalogAdminCategoryName))
     setCatalogAdminMinifigRows(CATALOG_MINIFIG_CATEGORIES.has(selectedCatalogAdminCategoryName) ? [buildCatalogMinifigRow()] : [])
     if (CATALOG_MINIFIG_CATEGORIES.has(selectedCatalogAdminCategoryName)) {
@@ -4575,7 +4647,8 @@ function App() {
     } else {
       setLegoPropertyRegistry([])
     }
-  }, [selectedCatalogAdminCategoryName])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCatalogAdminCategoryName, selectedCatalogAdminSubcategoryObj?.name])
 
   useEffect(() => {
     if (currentScreen !== 'catalog' || !isPlatformAdmin) { setCatalogAdminBrands([]); return }
@@ -8728,7 +8801,7 @@ function App() {
   }
 
   // ── Bulk Import helpers ──────────────────────────────────────────────────
-  const parseBulkImportCsv = (text, categoryName = '') => {
+  const parseBulkImportCsv = (text, categoryName = '', subcategoryName = '') => {
     const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim().split('\n')
     if (lines.length < 2) return []
     const parseRow = (line) => {
@@ -8747,7 +8820,11 @@ function App() {
     // see/handle them. No header is ever read into two different fields.
     const rawHeaders = parseRow(lines[0])
     const fieldIndex = {}        // canonical field -> column index
+    const dynamicIndex = {}      // per-game dynamic-field key -> column index
     const unknownHeaders = []    // { header, index } for unrecognised columns
+    // Per-game dynamic-field keys (e.g. One Piece: card_color, card_cost, …) —
+    // columns matching these are captured into dynamic_fields, not dropped.
+    const dynamicKeys = new Set(getCatalogDynamicFieldDefs(categoryName, subcategoryName).map((d) => d.key))
     rawHeaders.forEach((raw, i) => {
       const norm = BULK_HEADER_NORMALIZE(raw)
       const field = BULK_ALIAS_TO_FIELD[norm]
@@ -8757,6 +8834,7 @@ function App() {
       // its valid fields; a stray LEGO/card column is surfaced as unknown, not mapped.
       const allowedForCategory = def && (!def.categories || !categoryName || def.categories.includes(categoryName))
       if (field && allowedForCategory && fieldIndex[field] === undefined) fieldIndex[field] = i
+      else if (dynamicKeys.has(norm) && dynamicIndex[norm] === undefined) dynamicIndex[norm] = i
       else if (norm) unknownHeaders.push({ header: raw.trim(), index: i })
     })
     const unknownList = unknownHeaders.map(u => u.header)
@@ -8773,10 +8851,17 @@ function App() {
       // Item name and Subject are one and the same — a Subject column and the
       // Item column populate the same value.
       const nameValue = gv('item_name') || gv('subject')
+      // Collect per-game dynamic fields (One Piece stats etc.) for dynamic_fields.
+      const dynamic_fields = {}
+      for (const [key, colIdx] of Object.entries(dynamicIndex)) {
+        const v = (f[colIdx] || '').trim()
+        if (v) dynamic_fields[key] = v
+      }
       return {
         _id: idx,
         status: 'pending',
         _unknownCols: unknownList,
+        dynamic_fields,
         // ── taxonomy (mapped strictly by column; blank stays blank) ──
         item_name: nameValue,
         franchise_name: gv('franchise'),
@@ -8850,6 +8935,59 @@ function App() {
 
   const handleBulkImportFile = (file) => {
     if (!file) return
+    // JSON export (e.g. the One Piece TCG API): parse it and map ONE row per
+    // card object, then re-feed through the normal CSV pipeline.
+    if (/\.json$/i.test(file.name)) {
+      ;(async () => {
+        try {
+          setBulkImportSaveError('Reading JSON…')
+          const parsed = JSON.parse(await file.text())
+          const records = Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.data) ? parsed.data : null)
+          if (!records || !records.length) { setBulkImportSaveError('Expected a JSON array of card objects.'); return }
+          setBulkImportSaveError('')
+          handleBulkImportFile(new File([optcgJsonToCsv(records)], 'converted-from-json.csv', { type: 'text/csv' }))
+        } catch (err) {
+          setBulkImportSaveError(`Could not read JSON: ${err?.message || err}`)
+        }
+      })()
+      return
+    }
+    // PDF: extract text. If it's a pretty-printed JSON export, parse the JSON;
+    // otherwise fall back to table/list detection. Then re-feed as CSV.
+    if (/\.pdf$/i.test(file.name)) {
+      ;(async () => {
+        try {
+          setBulkImportSaveError('Reading PDF…')
+          const buffer = await file.arrayBuffer()
+          const { extractPdfLines, pdfLinesToCsv } = await import('./lib/pdfText')
+          const lines = await extractPdfLines(buffer)
+          console.log(`[bulk PDF] extracted ${lines.length} line(s) from ${file.name}`)
+          if (!lines.length) { setBulkImportSaveError('No readable text found in that PDF (it may be a scanned image — those need OCR).'); return }
+          // Strip repeating browser print headers/footers, then try JSON first.
+          const jsonText = lines
+            .filter((l) => !/optcgapi\.com|^Pretty-print$|^\s*\d+\s*\/\s*\d+\s*$|^\d{1,2}\/\d{1,2}\/\d{2,4},/.test(l))
+            .join('\n')
+          let csv = null
+          try {
+            const parsed = JSON.parse(jsonText)
+            if (Array.isArray(parsed) && parsed.length && parsed[0] && typeof parsed[0] === 'object') {
+              csv = optcgJsonToCsv(parsed)
+              console.log(`[bulk PDF] parsed ${parsed.length} JSON card object(s)`)
+            }
+          } catch { /* not JSON — fall through to line parsing */ }
+          if (!csv) {
+            const isCard = CARD_CONDITION_CATEGORIES.has(selectedCatalogAdminCategoryName)
+            csv = pdfLinesToCsv(lines, isCard)
+          }
+          setBulkImportSaveError('')
+          handleBulkImportFile(new File([csv], 'converted-from-pdf.csv', { type: 'text/csv' }))
+        } catch (err) {
+          console.error('[bulk PDF] failed', err)
+          setBulkImportSaveError(`Could not read PDF: ${err?.message || err}`)
+        }
+      })()
+      return
+    }
     const defaultSubsetId = catalogAdminSubsetId
     const isXlsx = /\.xlsx?$/i.test(file.name)
     const reader = new FileReader()
@@ -8868,14 +9006,14 @@ function App() {
         const reports = []
         for (const sheetName of wb.SheetNames) {
           const csv = XLSX.utils.sheet_to_csv(wb.Sheets[sheetName])
-          const rs = parseBulkImportCsv(csv, selectedCatalogAdminCategoryName)
+          const rs = parseBulkImportCsv(csv, selectedCatalogAdminCategoryName, selectedCatalogAdminSubcategoryObj?.name)
           const usable = rs.filter(isUsable)
           reports.push({ sheet: sheetName, rows: rs.length, usable: usable.length, included: usable.length > 0 })
           if (usable.length > 0) parsedRows = parsedRows.concat(rs.map(r => ({ ...r, _sheet: sheetName })))
         }
         if (wb.SheetNames.length > 1) sheetSummary = reports
       } else {
-        parsedRows = parseBulkImportCsv(e.target.result, selectedCatalogAdminCategoryName)
+        parsedRows = parseBulkImportCsv(e.target.result, selectedCatalogAdminCategoryName, selectedCatalogAdminSubcategoryObj?.name)
       }
       setBulkImportSheetSummary(sheetSummary)
       let rows = parsedRows.map(r => ({
@@ -9362,7 +9500,8 @@ function App() {
         name:                 row.item_name?.trim()         || null,
         category_id:          catalogAdminCategoryId        || null,
         subcategory_id:       rowSubcategoryId              || null,
-        franchise_id:         rowFranchiseId                || null,
+        // Trading Cards: Subcategory IS the franchise — never a separate franchise.
+        franchise_id:         selectedCatalogAdminCategoryName === 'Trading Cards' ? null : (rowFranchiseId || null),
         brand_id:             rowBrandId                    || null,
         collectible_set_id:   rowCollectibleSetId           || null,
         subcollectble_set_id: row.subcollectble_set_id       || null,
@@ -9377,6 +9516,8 @@ function App() {
         description:          row.description?.trim()        || null,
         card_number:          row.card_number?.trim()        || null,
         release_year:         row.release_year !== '' ? Number(row.release_year) : null,
+        // Per-game attributes (One Piece stats etc.) captured from the import.
+        dynamic_fields:       (row.dynamic_fields && Object.keys(row.dynamic_fields).length) ? row.dynamic_fields : {},
         rarity_id:            row.rarity_id                  || null,
         minifig_code:         mintedCode,
         lego_set_number:      row.lego_set_number?.trim()    || null,
@@ -9778,7 +9919,9 @@ function App() {
       .insert({
         category_id:          catalogAdminCategoryId             || null,
         subcategory_id:       catalogAdminSubcategoryId           || null,
-        franchise_id:         catalogAdminRealFranchiseId         || null,
+        // Trading Cards: the Subcategory IS the franchise — never store a
+        // separate franchise for this category.
+        franchise_id:         selectedCatalogAdminCategoryName === 'Trading Cards' ? null : (catalogAdminRealFranchiseId || null),
         brand_id:             catalogAdminBrandId                 || null,
         collectible_set_id:   catalogAdminFranchiseId             || null,
         subcollectble_set_id: catalogAdminSubsetId                || null,
@@ -13433,6 +13576,8 @@ function App() {
     catalogMtgCardTypes,
     catalogPage,
     catalogPageInput,
+    catalogPageSize,
+    setCatalogPageSize,
     catalogPricingSource,
     catalogPrintTypeId,
     catalogPrintTypes,

@@ -259,6 +259,8 @@ export default function CatalogPage({ scope }) {
     setCatalogReloadToken,
     setCatalogSeriesId,
     setCatalogSetId,
+    catalogPageSize,
+    setCatalogPageSize,
     setCatalogSortKey,
     setCatalogSubcategory,
     setCatalogSubjectId,
@@ -284,6 +286,72 @@ export default function CatalogPage({ scope }) {
     updateBulkRow,
     wishlistItemIds
   } = scope
+
+  const [adminToolsOpen, setAdminToolsOpen] = React.useState(false)
+
+  // Toggle a catalogue item's wishlist state. Reuses the real wishlist store
+  // (wishlistItemIds) so grid badges/hearts and the rest of the app stay in sync.
+  const toggleCatalogWishlist = async (itemId) => {
+    if (!currentUser?.id) return
+    const isOn = wishlistItemIds.has(itemId)
+    setWishlistItemIds((prev) => {
+      const next = new Set(prev)
+      if (isOn) next.delete(itemId); else next.add(itemId)
+      return next
+    })
+    try {
+      if (isOn) {
+        await supabase.from('wishlist_items').delete().eq('user_id', currentUser.id).eq('catalog_item_id', itemId)
+      } else {
+        await supabase.from('wishlist_items').upsert({ user_id: currentUser.id, catalog_item_id: itemId }, { onConflict: 'user_id,catalog_item_id', ignoreDuplicates: true })
+      }
+    } catch {
+      // Revert optimistic change on failure.
+      setWishlistItemIds((prev) => {
+        const next = new Set(prev)
+        if (isOn) next.add(itemId); else next.delete(itemId)
+        return next
+      })
+    }
+  }
+
+  // Clear every catalogue filter (shared by the sidebar "Clear" and the chip row).
+  const clearAllCatalogFilters = () => {
+    setCatalogCategory('all')
+    setCatalogSubcategory('')
+    setCatalogFranchise('all')
+    setCatalogFranchiseSearch('')
+    setCatalogBrandId('')
+    setCatalogTeamId('')
+    setCatalogSetId('')
+    setCatalogSubsetId('')
+    setCatalogSubthemeId('')
+    setCatalogProductLineId('')
+    setCatalogSeriesId('')
+    setCatalogPrintTypeId('')
+    setCatalogCardTypeIds([])
+    setCatalogSubjectId('')
+    setCatalogSubjectSearch('')
+    setCatalogSubjectResults([])
+    setCatalogAlbumSearch('')
+    setCatalogAlbumResults([])
+    setCatalogMinYear('')
+    setCatalogMaxYear('')
+  }
+
+  // Removable chips for every active filter (real state — nothing hardcoded).
+  const activeFilterChips = []
+  if (catalogCategory && catalogCategory !== 'all') activeFilterChips.push({ key: 'cat', label: catalogCategory, onRemove: () => setCatalogCategory('all') })
+  if (catalogSubcategory) activeFilterChips.push({ key: 'sub', label: catalogSubcategory, onRemove: () => setCatalogSubcategory('') })
+  if (catalogFranchiseSearch) activeFilterChips.push({ key: 'fr', label: catalogFranchiseSearch, onRemove: () => { setCatalogFranchiseSearch(''); setCatalogFranchise('all') } })
+  if (catalogBrandId) activeFilterChips.push({ key: 'brand', label: catalogBrandById[catalogBrandId] || 'Item Type', onRemove: () => setCatalogBrandId('') })
+  if (catalogSubthemeId) activeFilterChips.push({ key: 'sth', label: (catalogSubthemeOptions.find((o) => o.id === catalogSubthemeId)?.name) || 'Subtheme', onRemove: () => setCatalogSubthemeId('') })
+  if (catalogProductLineId) activeFilterChips.push({ key: 'pl', label: (catalogProductLineOptions.find((o) => o.id === catalogProductLineId)?.name) || 'Product Line', onRemove: () => setCatalogProductLineId('') })
+  if (catalogSeriesId) activeFilterChips.push({ key: 'ser', label: (catalogSeriesOptions.find((o) => o.id === catalogSeriesId)?.name) || 'Series', onRemove: () => setCatalogSeriesId('') })
+  if (catalogSubjectSearch) activeFilterChips.push({ key: 'subj', label: catalogSubjectSearch, onRemove: () => { setCatalogSubjectId(''); setCatalogSubjectSearch(''); setCatalogSubjectResults([]) } })
+  if (catalogMinYear) activeFilterChips.push({ key: 'miny', label: `From ${catalogMinYear}`, onRemove: () => setCatalogMinYear('') })
+  if (catalogMaxYear) activeFilterChips.push({ key: 'maxy', label: `To ${catalogMaxYear}`, onRemove: () => setCatalogMaxYear('') })
+
   return (
           <section className="catalog-screen" aria-label="Catalog">
             <div className="catalog-sticky-top">
@@ -312,72 +380,84 @@ export default function CatalogPage({ scope }) {
                 <button type="button" className="catalog-action-pill">
                   {t('suggestItemAction')}
                 </button>
-                {isPlatformAdmin && (
-                  <>
-                    <button
-                      type="button"
-                      className="catalog-action-pill"
-                      onClick={() => {
-                        setCatalogAdminFormError('')
-                        setCatalogAdminItemDescription('')
-                        setCatalogAdminCardNumber('')
-                        setCatalogAdminPrintCount('')
-                        setCatalogAdminRealFranchiseId('')
-                        setCatalogAdminSubjectIds([])
-                        setCatalogAdminTeamIds([])
-                        setCatalogAdminPrintTypeId('')
-                        setCatalogAdminCardTypeIds([])
-                        setCatalogAdminSubsetId('')
-                        setCatalogAdminFranchiseId('')
-                        setCatalogAdminBrandId('')
-                        setCatalogAdminFrontImageFile(null)
-                        setCatalogAdminBackImageFile(null)
-                        setIsCatalogItemModalOpen(true)
-                      }}
-                    >
-                      {t('addItemAction')}
-                    </button>
-                    <button
-                      type="button"
-                      className="catalog-action-pill"
-                      onClick={() => setIsCatalogAdminPanelOpen(true)}
-                    >
-                      Manage Catalog
-                    </button>
-                    <button
-                      type="button"
-                      className={`catalog-action-pill${isCatalogBulkEditMode ? ' active' : ''}`}
-                      onClick={() => {
-                        setIsCatalogBulkEditMode((current) => !current)
-                        if (isCatalogBulkEditMode) setCatalogBulkSelectedIds(new Set())
-                      }}
-                    >
-                      {isCatalogBulkEditMode ? 'Exit Bulk Edit' : 'Bulk Edit'}
-                    </button>
-                    <button
-                      type="button"
-                      className="catalog-action-pill"
-                      disabled={imageQueueLoading || imageQueueCount === 0}
-                      title="Step through every catalogue item that has no image"
-                      onClick={startImageQueue}
-                    >
-                      {imageQueueLoading ? 'Loading…' : `Image Queue${imageQueueCount != null ? ` (${imageQueueCount})` : ''}`}
-                    </button>
-                  </>
-                )}
                 <button type="button" className="catalog-action-pill">
                   {t('mySuggestionsAction')}
                 </button>
-                <button
-                  type="button"
-                  className="catalog-action-pill"
-                  onClick={() => {
-                    setCatalogPage(1)
-                    setCatalogReloadToken((currentToken) => currentToken + 1)
-                  }}
-                >
-                  {t('refreshAction')}
-                </button>
+                {isPlatformAdmin && (
+                  <div className="catalog-admin-tools">
+                    <button
+                      type="button"
+                      className={`catalog-action-pill catalog-admin-tools-trigger${adminToolsOpen ? ' active' : ''}`}
+                      aria-haspopup="menu"
+                      aria-expanded={adminToolsOpen}
+                      onClick={() => setAdminToolsOpen((v) => !v)}
+                    >
+                      ⚙ Admin Tools ▾
+                    </button>
+                    {adminToolsOpen && (
+                      <>
+                        <span className="catalog-admin-menu-backdrop" onClick={() => setAdminToolsOpen(false)} />
+                        <div className="catalog-admin-menu" role="menu">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAdminToolsOpen(false)
+                              setCatalogAdminFormError('')
+                              setCatalogAdminItemDescription('')
+                              setCatalogAdminCardNumber('')
+                              setCatalogAdminPrintCount('')
+                              setCatalogAdminRealFranchiseId('')
+                              setCatalogAdminSubjectIds([])
+                              setCatalogAdminTeamIds([])
+                              setCatalogAdminPrintTypeId('')
+                              setCatalogAdminCardTypeIds([])
+                              setCatalogAdminSubsetId('')
+                              setCatalogAdminFranchiseId('')
+                              setCatalogAdminBrandId('')
+                              setCatalogAdminFrontImageFile(null)
+                              setCatalogAdminBackImageFile(null)
+                              setIsCatalogItemModalOpen(true)
+                            }}
+                          >
+                            {t('addItemAction')}
+                          </button>
+                          <button type="button" onClick={() => { setAdminToolsOpen(false); setIsCatalogAdminPanelOpen(true) }}>
+                            Manage Catalogue
+                          </button>
+                          <button
+                            type="button"
+                            className={isCatalogBulkEditMode ? 'is-active' : ''}
+                            onClick={() => {
+                              setAdminToolsOpen(false)
+                              setIsCatalogBulkEditMode((current) => !current)
+                              if (isCatalogBulkEditMode) setCatalogBulkSelectedIds(new Set())
+                            }}
+                          >
+                            {isCatalogBulkEditMode ? 'Exit Bulk Edit' : 'Bulk Edit'}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={imageQueueLoading || imageQueueCount === 0}
+                            title="Step through every catalogue item that has no image"
+                            onClick={() => { setAdminToolsOpen(false); startImageQueue() }}
+                          >
+                            {imageQueueLoading ? 'Loading…' : `Image Queue${imageQueueCount != null ? ` (${imageQueueCount})` : ''}`}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAdminToolsOpen(false)
+                              setCatalogPage(1)
+                              setCatalogReloadToken((currentToken) => currentToken + 1)
+                            }}
+                          >
+                            {t('refreshAction')}
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -436,6 +516,19 @@ export default function CatalogPage({ scope }) {
               </div>
             )}
             </div>
+
+            {activeFilterChips.length > 0 && (
+              <div className="catalog-active-filters">
+                <span className="catalog-active-filters-label">Active filters:</span>
+                {activeFilterChips.map((chip) => (
+                  <span key={chip.key} className="catalog-chip">
+                    {chip.label}
+                    <button type="button" aria-label={`Remove ${chip.label}`} onClick={chip.onRemove}>×</button>
+                  </span>
+                ))}
+                <button type="button" className="catalog-chip-clear" onClick={clearAllCatalogFilters}>Clear all</button>
+              </div>
+            )}
 
             <div className={`catalog-layout${catalogViewMode === 'list' ? ' catalog-layout-list-mode' : ''}`}>
               <aside className="catalog-card catalog-filters" aria-label="Catalog filters">
@@ -839,6 +932,18 @@ export default function CatalogPage({ scope }) {
                   <div>
                     <div className="catalog-view-bar">
                       <span className="catalog-view-count">{catalogTotalItemCount.toLocaleString()} items</span>
+                      <label className="catalog-page-size">
+                        <span>Per page</span>
+                        <select
+                          value={catalogPageSize}
+                          onChange={(event) => { setCatalogPageSize(Number(event.target.value)); setCatalogPage(1) }}
+                          aria-label="Items per page"
+                        >
+                          <option value={15}>15</option>
+                          <option value={25}>25</option>
+                          <option value={50}>50</option>
+                        </select>
+                      </label>
                       {isPlatformAdmin && isCatalogBulkEditMode && (
                         <div className="catalog-bulk-toolbar" role="group" aria-label="Bulk edit selection controls">
                           <button
@@ -964,6 +1069,8 @@ export default function CatalogPage({ scope }) {
                               ? item.front_image_path
                               : supabase.storage.from('item-images').getPublicUrl(item.front_image_path).data?.publicUrl
                             : ''
+                          const isOwned          = (ownedCatalogItemCounts[item.id] || 0) > 0
+                          const isWishlisted     = wishlistItemIds.has(item.id)
 
                           return (
                             <article
@@ -992,11 +1099,27 @@ export default function CatalogPage({ scope }) {
                                   />
                                 </label>
                               )}
-                              {imageUrl ? (
-                                <img className="catalog-item-image" src={imageUrl} alt={item.name || 'Catalog item'} loading="lazy" />
-                              ) : (
-                                <div className="catalog-item-image catalog-item-image-placeholder">No image</div>
-                              )}
+                              <div className="catalog-card-media">
+                                {imageUrl ? (
+                                  <img className="catalog-item-image" src={imageUrl} alt={item.name || 'Catalogue item'} loading="lazy" />
+                                ) : (
+                                  <div className="catalog-item-image catalog-item-image-placeholder">No image</div>
+                                )}
+                                <button
+                                  type="button"
+                                  className={`catalog-card-heart${isWishlisted ? ' is-on' : ''}`}
+                                  aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+                                  aria-pressed={isWishlisted}
+                                  onClick={(event) => { event.stopPropagation(); toggleCatalogWishlist(item.id) }}
+                                >
+                                  {isWishlisted ? '♥' : '♡'}
+                                </button>
+                                {isOwned ? (
+                                  <span className="catalog-card-badge is-owned">⊘ OWNED</span>
+                                ) : isWishlisted ? (
+                                  <span className="catalog-card-badge is-wishlist">♥ WISHLIST</span>
+                                ) : null}
+                              </div>
                               <div className="catalog-item-content">
                                 <h3>{isMusic ? franchiseName : (item.name || 'Untitled item')}</h3>
                                 <p className="catalog-item-meta">{isMusic ? (item.name || 'Untitled item') : franchiseName}</p>
@@ -1646,7 +1769,7 @@ export default function CatalogPage({ scope }) {
                           <p className="catalog-admin-hint" style={{ marginBottom: 8 }}>Columns recognised: <code>subject_name, franchise, brand, collectible_set, card_number, team, print_count, piece_count, release_year, description, upc, bricklink_id, rebrickable_fig_id, card_treatments, rarity, parent_set</code></p>
                           <p className="catalog-admin-hint" style={{ marginBottom: 8 }}>Franchise, brand, and collectible set will be created automatically if they don't exist yet.</p>
                           <label className="bulk-import-upload-area">
-                            <input type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" style={{ display: 'none' }} onChange={e => handleBulkImportFile(e.target.files?.[0])} />
+                            <input type="file" accept=".csv,.xlsx,.xls,.pdf,.json,text/csv,application/pdf,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" style={{ display: 'none' }} onChange={e => handleBulkImportFile(e.target.files?.[0])} />
                             <span className="bulk-import-upload-icon">&#8679;</span>
                             <span>Click to choose CSV or Excel file</span>
                           </label>

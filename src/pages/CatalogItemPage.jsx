@@ -1,4 +1,5 @@
 import React from 'react'
+import CardVariants from '../components/dashboard/CardVariants'
 
 export default function CatalogItemPage({ scope }) {
   const {
@@ -354,6 +355,12 @@ export default function CatalogItemPage({ scope }) {
                       }
                     </div>
                   </div>
+                  <CardVariants
+                    itemId={selectedCatalogItem.id}
+                    cardNumber={selectedCatalogItem._details?.card_number}
+                    franchiseId={selectedCatalogItem._details?.franchise_id}
+                    onOpenItem={openCatalogItemById}
+                  />
                   <div className="catalog-detail-actions">
                     {isPlatformAdmin && !isCatalogItemEditMode && (
                       <button type="button" className="catalog-detail-btn catalog-detail-btn-edit" onClick={handleOpenCatalogItemEdit}>
@@ -785,7 +792,7 @@ export default function CatalogItemPage({ scope }) {
                           : supabase.storage.from('item-images').getPublicUrl(frontImg.image_path).data?.publicUrl
                         : null
                       return frontUrl ? (
-                        <img src={frontUrl} alt={selectedCatalogItem.name || 'Catalog item'} className="catalog-detail-market-image catalog-zoomable" onClick={() => openLightbox(frontUrl)} />
+                        <img src={frontUrl} alt={selectedCatalogItem.name || 'Catalogue item'} className="catalog-detail-market-image catalog-zoomable" onClick={() => openLightbox(frontUrl)} />
                       ) : (
                         <div className="catalog-detail-market-image catalog-item-image-placeholder">N/A</div>
                       )
