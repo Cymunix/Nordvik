@@ -322,7 +322,7 @@
 
 /* Sidebar */
 .nv-wish-sidebar { align-self: start; }
-.nv-wish-sidebar-head {
+.nv-wishlist .nv-wish-sidebar-head {
   text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.78rem; font-weight: 800;
   color: var(--nv-ink, #e8eef7); margin: 0 0 12px;
 }
