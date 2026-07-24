@@ -191,6 +191,7 @@ export default function CatalogPage({ scope }) {
     selectedCatalogAdminCategoryName,
     selectedCatalogBulkFranchiseIds,
     selectedCatalogFranchiseRecord,
+    selectedCatalogSubcategoryRecord,
     setBulkImportCreatingPrintType,
     setBulkImportIdx,
     setBulkImportMode,
@@ -677,17 +678,28 @@ export default function CatalogPage({ scope }) {
 
                 {/* Brand — filtered to Music franchise brands when Music is selected */}
                 <label htmlFor="catalog-brand">{catalogSidebarLabels.brand}</label>
+                {(() => {
+                  // For Trading Cards the "Game / Franchise" facet sets the SUBCATEGORY,
+                  // not a franchise — so scope the Item Type facet on either. Its options
+                  // (catalogFranchiseLinkedBrands) already load from whichever is selected.
+                  const brandScopeSelected = !!(selectedCatalogFranchiseRecord || selectedCatalogSubcategoryRecord)
+                  const brandPlaceholder = brandScopeSelected
+                    ? 'All'
+                    : (catalogSidebarLabels.hideFranchise ? `Select ${catalogSidebarLabels.subcategory.toLowerCase()} first` : 'Select franchise first')
+                  return (
                 <select
                   id="catalog-brand"
                   value={catalogBrandId}
-                  disabled={!selectedCatalogFranchiseRecord}
+                  disabled={!brandScopeSelected}
                   onChange={(event) => setCatalogBrandId(event.target.value)}
                 >
-                  <option value="">{selectedCatalogFranchiseRecord ? 'All' : 'Select franchise first'}</option>
+                  <option value="">{brandPlaceholder}</option>
                   {catalogFranchiseLinkedBrands.map((b) => (
                     <option key={b.id} value={b.id}>{b.name}</option>
                   ))}
                 </select>
+                  )
+                })()}
 
                 {/* Team — cascades from franchise, only shown when options exist */}
                 {catalogTeams.length > 0 && (

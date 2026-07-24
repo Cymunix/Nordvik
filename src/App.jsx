@@ -3244,7 +3244,21 @@ function App() {
       setCatalogSets([])
       setCatalogSubsets([])
       setCatalogPrintTypes([])
-      setCatalogFranchiseLinkedBrands([])
+      // Teams/sets/subsets/print-types need a franchise, but the Item Type (brand)
+      // facet still applies when a subcategory is chosen without one — Trading Cards
+      // uses its subcategory as the game/franchise. Load brands scoped to it.
+      const brandCatId = selectedCatalogCategoryRecord?.id || null
+      const brandSubId = selectedCatalogSubcategoryRecord?.id || null
+      if (brandCatId && brandSubId) {
+        supabase.from('items').select('brand_id').not('brand_id', 'is', null)
+          .eq('category_id', brandCatId).eq('subcategory_id', brandSubId)
+          .then(({ data }) => {
+            const ids = new Set((data || []).map((r) => r.brand_id).filter(Boolean))
+            setCatalogFranchiseLinkedBrands(catalogBrands.filter((b) => ids.has(b.id)))
+          })
+      } else {
+        setCatalogFranchiseLinkedBrands([])
+      }
       return
     }
     if (franchiseChanged) {
@@ -14018,6 +14032,7 @@ function App() {
     selectedCatalogAdminCategoryName,
     selectedCatalogBulkFranchiseIds,
     selectedCatalogFranchiseRecord,
+    selectedCatalogSubcategoryRecord,
     selectedCatalogItem,
     selectedCatalogItemCategoryLabels,
     selectedCatalogItemMetadata,
