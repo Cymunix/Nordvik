@@ -57,11 +57,9 @@ export default function WishlistPage({ scope }) {
 
   const fmtDate = (d) => { try { return d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null } catch { return null } }
 
-  const ownedInWishlist = wishlistItems.filter(i => (ownedCatalogItemCounts[i.id] || 0) > 0).length
   const stats = [
     { icon: '♥', label: 'Total Wishlisted', value: wishlistSummary.totalItems, unit: wishlistSummary.totalItems === 1 ? 'item' : 'items' },
     { icon: '▦', label: 'Categories', value: wishlistSummary.uniqueCategories, unit: wishlistSummary.uniqueCategories === 1 ? 'category' : 'categories' },
-    { icon: '✓', label: 'Already Owned', value: ownedInWishlist, unit: ownedInWishlist === 1 ? 'item' : 'items' },
     {
       icon: '▤', label: 'Est. Price to Complete',
       value: wishlistSummary.pricedCount > 0 ? formatUsd(wishlistSummary.estimatedTotal) : '$—',

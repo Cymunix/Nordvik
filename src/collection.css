@@ -403,7 +403,7 @@
 .nv-wish-manage-disabled { color: var(--nv-ink-dim, #9fb0c6) !important; cursor: not-allowed !important; }
 
 /* Stats row */
-.nv-wish-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 16px; }
+.nv-wish-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 16px; }
 .nv-wish-stat { display: flex; align-items: center; gap: 14px; padding: 18px; }
 .nv-wish-stat-ic {
   width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
