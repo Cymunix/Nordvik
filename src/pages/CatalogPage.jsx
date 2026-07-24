@@ -53,6 +53,7 @@ export default function CatalogPage({ scope }) {
     catalogAdminFranchiseId,
     catalogAdminFranchises,
     catalogAdminFrontImageFile,
+    catalogAdminDynamicFieldDefinitions,
     catalogAdminInlineCreate,
     catalogAdminIsMtg,
     catalogAdminItemDescription,
@@ -2222,6 +2223,16 @@ export default function CatalogPage({ scope }) {
                                             <input type="text" value={cur.parent_set_bricklink_id || ''} onChange={e => updateBulkRow(bulkImportIdx, { parent_set_bricklink_id: e.target.value })} placeholder="e.g. 75357-1 or 75357" />
                                           </div>
                                         )}
+                                        {(catalogAdminDynamicFieldDefinitions || []).map(def => (
+                                          <div className="bulk-import-editor-field" key={def.key}>
+                                            <label>{def.label}</label>
+                                            <input
+                                              type={def.type === 'number' ? 'number' : 'text'}
+                                              value={cur.dynamic_fields?.[def.key] ?? ''}
+                                              onChange={e => updateBulkRow(bulkImportIdx, { dynamic_fields: { ...(cur.dynamic_fields || {}), [def.key]: e.target.value } })}
+                                            />
+                                          </div>
+                                        ))}
                                         <div className="bulk-import-editor-field bulk-import-editor-field--wide">
                                           <label>Description</label>
                                           <textarea rows={2} value={cur.description || ''} onChange={e => updateBulkRow(bulkImportIdx, { description: e.target.value })} />

@@ -13948,6 +13948,7 @@ function App() {
     removeSetMinifigLink,
     renewalStatus,
     rollupCards,
+    catalogAdminDynamicFieldDefinitions,
     searchLegoItemsToLink,
     selectedCatalogAdminCategoryName,
     selectedCatalogBulkFranchiseIds,
