@@ -123,16 +123,20 @@ export default function CompletionPage({
         const catMap = new Map((cats || []).map(x => [x.category_id, x.name]))
         const ids = [...catMap.keys()]
 
-        const all = []
-        for (let from = 0; ; from += 1000) {
-          const { data, error: pageError } = await supabase
-            .from('items')
-            .select('item_id, name, category_id, subcategory_id, franchise_id, series_id, subset_id, brand_id')
-            .in('category_id', ids).range(from, from + 999)
-          if (pageError) throw pageError
-          all.push(...(data || []))
-          if (!data || data.length < 1000) break
-        }
+        // Count first, then pull every page of items in PARALLEL (sequential
+        // paging was slow once the catalogue reached thousands of cards).
+        const itemCols = 'item_id, name, category_id, subcategory_id, franchise_id, series_id, subset_id, brand_id'
+        const { count: itemCount, error: countErr } = await supabase
+          .from('items').select('item_id', { count: 'exact', head: true }).in('category_id', ids)
+        if (countErr) throw countErr
+        const pageCount = Math.max(1, Math.ceil((itemCount || 0) / 1000))
+        const pages = await Promise.all(
+          Array.from({ length: pageCount }, (_, p) =>
+            supabase.from('items').select(itemCols).in('category_id', ids).range(p * 1000, p * 1000 + 999)
+              .then(({ data, error: pageError }) => { if (pageError) throw pageError; return data || [] }),
+          ),
+        )
+        const all = pages.flat()
 
         const uniq = (key) => [...new Set(all.map(r => r[key]).filter(Boolean))]
         const lookup = async (table, idCol, idsToLoad) => {
@@ -154,51 +158,51 @@ export default function CompletionPage({
           lookup('brands', 'brand_id', uniq('brand_id')),
         ])
 
-        // Product Line is many-to-many through item_product_lines.
+        // Product Line + Property (m2m) and the front image all key off item_id.
+        // Fetch each table's chunks in PARALLEL, and the three loads concurrently —
+        // sequential round-trips were what made completion crawl at thousands of
+        // items. Images come from item_images directly (not the heavy item_details
+        // view, which just for an image path is far too expensive).
         const itemIds = all.map(r => r.item_id).filter(Boolean)
-        const links = []
-        for (let i = 0; i < itemIds.length; i += 500) {
-          const { data, error } = await supabase.from('item_product_lines')
-            .select('item_id, product_line_id').in('item_id', itemIds.slice(i, i + 500))
-          if (error) throw error
-          links.push(...(data || []))
+        const fetchByItems = async (table, cols, extraEq) => {
+          const chunks = []
+          for (let i = 0; i < itemIds.length; i += 500) chunks.push(itemIds.slice(i, i + 500))
+          const results = await Promise.all(chunks.map(async (slice) => {
+            let q = supabase.from(table).select(cols).in('item_id', slice)
+            if (extraEq) q = q.eq(extraEq[0], extraEq[1])
+            const { data, error } = await q
+            if (error) throw error
+            return data || []
+          }))
+          return results.flat()
         }
-        const productLineIds = [...new Set(links.map(x => x.product_line_id).filter(Boolean))]
-        const productLines = await lookup('product_lines', 'product_line_id', productLineIds)
 
-        const propertyLinks = []
-        for (let i = 0; i < itemIds.length; i += 500) {
-          const { data, error } = await supabase.from('item_properties')
-            .select('item_id, property_id').in('item_id', itemIds.slice(i, i + 500))
-          if (error) throw error
-          propertyLinks.push(...(data || []))
-        }
-        const propertyIds = [...new Set(propertyLinks.map(x => x.property_id).filter(Boolean))]
-        const properties = await lookup('properties', 'property_id', propertyIds)
+        const [links, propertyLinks, imageRows] = await Promise.all([
+          fetchByItems('item_product_lines', 'item_id, product_line_id'),
+          fetchByItems('item_properties', 'item_id, property_id'),
+          fetchByItems('item_images', 'item_id, image_path', ['position', 0]),
+        ])
+
+        const [productLines, properties] = await Promise.all([
+          lookup('product_lines', 'product_line_id', [...new Set(links.map(x => x.product_line_id).filter(Boolean))]),
+          lookup('properties', 'property_id', [...new Set(propertyLinks.map(x => x.property_id).filter(Boolean))]),
+        ])
+
         const itemProperties = new Map()
         for (const link of propertyLinks) {
           if (!itemProperties.has(link.item_id)) itemProperties.set(link.item_id, [])
           const name = properties.get(link.property_id)
           if (name) itemProperties.get(link.item_id).push(name)
         }
-
         const itemProductLines = new Map()
         for (const link of links) {
           if (!itemProductLines.has(link.item_id)) itemProductLines.set(link.item_id, [])
           const name = productLines.get(link.product_line_id)
           if (name) itemProductLines.get(link.item_id).push(name)
         }
-
         const imageByItemId = new Map()
-        for (let i = 0; i < itemIds.length; i += 500) {
-          const { data: imageRows, error: imageError } = await supabase
-            .from('item_details')
-            .select('item_id, front_image_path')
-            .in('item_id', itemIds.slice(i, i + 500))
-          if (imageError) throw imageError
-          for (const imageRow of (imageRows || [])) {
-            if (imageRow.front_image_path) imageByItemId.set(imageRow.item_id, imageRow.front_image_path)
-          }
+        for (const imageRow of imageRows) {
+          if (imageRow.image_path && !imageByItemId.has(imageRow.item_id)) imageByItemId.set(imageRow.item_id, imageRow.image_path)
         }
 
         const enriched = all.map(r => ({
