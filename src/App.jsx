@@ -5563,7 +5563,7 @@ function App() {
     const load = async () => {
       const { data: wishRows, error: wishErr } = await supabase
         .from('wishlist_items')
-        .select('catalog_item_id')
+        .select('catalog_item_id, created_at')
         .eq('user_id', currentUser.id)
       if (wishErr || !Array.isArray(wishRows)) {
         if (!cancelled) { setWishlistLoadError(wishErr?.message || 'Could not load wishlist.'); setIsWishlistLoading(false) }
@@ -5618,7 +5618,7 @@ function App() {
         }
       }
       const items = wishRows
-        .map(r => ({ ...detailsById[r.catalog_item_id] }))
+        .map(r => ({ ...detailsById[r.catalog_item_id], addedAt: r.created_at || null }))
         .filter(i => i.id)
       if (!cancelled) {
         setWishlistItems(items)
