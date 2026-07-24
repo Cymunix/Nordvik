@@ -1,0 +1,184 @@
+/* ─────────────────────────────────────────────────────────────
+   NORDVIK Catalogue Item detail — dark reskin
+   Scoped to .catalog-detail-screen so it overrides the light
+   catalog-detail-* rules in App.css. Imported LAST in main.jsx.
+   Much of the page is darkened just by redefining the local vars
+   the App.css rules already consume; the rest is targeted overrides.
+   ───────────────────────────────────────────────────────────── */
+
+/* Double-class root: App.css imports AFTER this file (via App.jsx) and styles
+   .catalog-detail-screen at the same specificity, so repeat the class to win and
+   push the dark local palette onto every child App.css rule that reads it. */
+.catalog-detail-screen.catalog-detail-screen {
+  /* Redefine the light local palette → dark NORDVIK. */
+  --detail-bg: transparent;
+  --detail-card: var(--nv-panel-solid, #131d2b);
+  --detail-border: var(--nv-border, rgba(120, 150, 190, 0.16));
+  --detail-text: var(--nv-ink, #e8eef7);
+  --detail-muted: var(--nv-ink-dim, #9fb0c6);
+  /* market-blue* already read as dark navy — nudge them onto the NORDVIK panel. */
+  --market-blue: #0b1728;
+  --market-blue-mid: #0e1d33;
+  --market-blue-soft: #14263f;
+  max-width: 1320px;
+  background: transparent;
+  color: var(--nv-ink, #e8eef7);
+}
+
+/* Shared pill/band classes that App.css paints light — dark within the item page. */
+.catalog-detail-screen .catalog-action-pill {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--nv-border, rgba(120, 150, 190, 0.16));
+  color: var(--nv-ink, #e8eef7);
+}
+.catalog-detail-screen .catalog-action-pill:hover {
+  background: rgba(111, 211, 230, 0.14);
+  border-color: var(--nv-cyan, #6fd3e6);
+}
+.catalog-detail-screen .catalog-detail-description-band {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--nv-border, rgba(120, 150, 190, 0.16));
+  color: var(--nv-ink, #e8eef7);
+}
+
+/* ── Panels / cards ── */
+.catalog-detail-screen .catalog-card,
+.catalog-detail-screen .catalog-detail-section,
+.catalog-detail-screen .catalog-detail-market-card,
+.catalog-detail-screen .catalog-detail-availability-card,
+.catalog-detail-screen .catalog-detail-reviews-section,
+.catalog-detail-screen .catalog-detail-images-section {
+  background: var(--nv-panel, rgba(23, 34, 50, 0.72));
+  border: 1px solid var(--nv-border, rgba(120, 150, 190, 0.16));
+  color: var(--nv-ink, #e8eef7);
+  border-radius: 14px;
+}
+.catalog-detail-screen .catalog-detail-section h3,
+.catalog-detail-screen h2,
+.catalog-detail-screen h3,
+.catalog-detail-screen h4 { color: var(--nv-ink, #e8eef7); }
+.catalog-detail-screen .catalog-detail-section p { color: var(--nv-ink-dim, #9fb0c6); }
+
+/* ── Title / meta ── */
+.catalog-detail-screen .catalog-detail-title { color: var(--nv-ink, #e8eef7); }
+.catalog-detail-screen .catalog-detail-subtitle,
+.catalog-detail-screen .catalog-detail-meta-item,
+.catalog-detail-screen .catalog-detail-info-value { color: var(--nv-ink, #e8eef7); }
+.catalog-detail-screen .catalog-detail-label,
+.catalog-detail-screen .catalog-detail-info-label { color: var(--nv-ink-dim, #9fb0c6); }
+.catalog-detail-screen .catalog-detail-meta-link { color: var(--nv-cyan, #6fd3e6); }
+.catalog-detail-screen .catalog-detail-meta-link:hover { color: var(--nv-gold, #d9b45a); }
+
+/* ── Set nav + generic pill buttons ── */
+.catalog-detail-screen .catalog-detail-set-nav-btn,
+.catalog-detail-screen .catalog-detail-history-btn,
+.catalog-detail-screen .catalog-detail-viewall-btn,
+.catalog-detail-screen .catalog-detail-add-photo-btn {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--nv-border, rgba(120, 150, 190, 0.16));
+  color: var(--nv-ink, #e8eef7);
+}
+.catalog-detail-screen .catalog-detail-set-nav-btn:hover:not(:disabled) {
+  background: rgba(111, 211, 230, 0.12);
+  border-color: var(--nv-cyan, #6fd3e6);
+}
+.catalog-detail-screen .catalog-detail-set-nav-pos { color: var(--nv-ink-dim, #9fb0c6); }
+
+/* ── Tab bar ── */
+.catalog-detail-screen .catalog-detail-tabs {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--nv-border, rgba(120, 150, 190, 0.16));
+  flex-wrap: wrap;
+}
+.catalog-detail-screen .catalog-detail-tab-btn { color: var(--nv-ink-dim, #9fb0c6); }
+.catalog-detail-screen .catalog-detail-tab-btn:hover { color: var(--nv-ink, #e8eef7); }
+.catalog-detail-screen .catalog-detail-tab-btn.active {
+  background: var(--nv-cyan, #2563eb);
+  color: #05121f;
+}
+
+/* ── Metrics / stat boxes ── */
+.catalog-detail-screen .catalog-detail-metric-box {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--nv-border, rgba(120, 150, 190, 0.16));
+}
+.catalog-detail-screen .catalog-detail-metric-box span { color: var(--nv-ink-dim, #9fb0c6); }
+.catalog-detail-screen .catalog-detail-metric-box strong { color: var(--nv-ink, #e8eef7); }
+.catalog-detail-screen .catalog-detail-metric-box em { color: var(--nv-ink-dim, #9fb0c6); }
+.catalog-detail-screen .catalog-detail-metric-box em.positive { color: #34d399; }
+
+/* ── Info cells / community / listing / availability rows ── */
+.catalog-detail-screen .catalog-detail-info-cell,
+.catalog-detail-screen .catalog-detail-community-item,
+.catalog-detail-screen .catalog-detail-list-row,
+.catalog-detail-screen .catalog-detail-review-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--nv-border, rgba(120, 150, 190, 0.16));
+  color: var(--nv-ink, #e8eef7);
+}
+.catalog-detail-screen .catalog-detail-info-value,
+.catalog-detail-screen .catalog-detail-price,
+.catalog-detail-screen .catalog-detail-graded-value { color: var(--nv-ink, #e8eef7); }
+
+/* ── Chips / tags ── */
+.catalog-detail-screen .catalog-chip,
+.catalog-detail-screen .catalog-tag {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--nv-border, rgba(120, 150, 190, 0.16));
+  color: var(--nv-ink, #e8eef7);
+}
+
+/* ── Primary / secondary action buttons ── */
+.catalog-detail-screen .catalog-detail-btn-collect {
+  background: #22a06b;
+  border: 1px solid #22a06b;
+  color: #fff;
+}
+.catalog-detail-screen .catalog-detail-btn-collect:hover { background: #1c8a5b; }
+.catalog-detail-screen .catalog-detail-btn-wishlist {
+  background: transparent;
+  border: 1px solid var(--nv-indigo, #7c8cff);
+  color: var(--nv-indigo, #9fb0ff);
+}
+.catalog-detail-screen .catalog-detail-btn-edit {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--nv-border, rgba(120, 150, 190, 0.16));
+  color: var(--nv-ink, #e8eef7);
+}
+
+/* ── Image frames ── */
+.catalog-detail-screen .catalog-detail-image-frame,
+.catalog-detail-screen .catalog-detail-item-image,
+.catalog-detail-screen .catalog-detail-market-image-wrap {
+  background: #0a1120;
+  border: 1px solid var(--nv-border, rgba(120, 150, 190, 0.16));
+}
+
+/* ── Sticky cart bar ── */
+.catalog-detail-screen .catalog-detail-cartbar {
+  background: var(--nv-panel-solid, #131d2b);
+  border-top: 1px solid var(--nv-border, rgba(120, 150, 190, 0.16));
+  color: var(--nv-ink, #e8eef7);
+}
+.catalog-detail-screen .catalog-detail-cartbtn {
+  background: var(--nv-cyan, #2563eb);
+  color: #05121f;
+  border: none;
+}
+
+/* ── Empty states ── */
+.catalog-detail-screen .catalog-detail-empty-state {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed var(--nv-border, rgba(120, 150, 190, 0.16));
+  color: var(--nv-ink-dim, #9fb0c6);
+}
+
+/* ── Inputs / selects inside admin/edit + grading ── */
+.catalog-detail-screen select,
+.catalog-detail-screen input[type="text"],
+.catalog-detail-screen input[type="number"],
+.catalog-detail-screen textarea {
+  background: #0c1524;
+  border: 1px solid var(--nv-border, rgba(120, 150, 190, 0.16));
+  color: var(--nv-ink, #e8eef7);
+}

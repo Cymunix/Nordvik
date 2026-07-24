@@ -869,10 +869,10 @@ export default function CatalogItemPage({ scope }) {
                       <div className="catalog-market-data-heading">
                         <h2>Market Data & Pricing</h2>
                         {(isPlatformAdmin ||
-                          userProfile?.collector_plus ||
-                          userProfile?.is_collector_plus ||
-                          userProfile?.subscription_tier === 'collector_plus' ||
-                          userProfile?.plan === 'collector_plus') ? (
+                          profile?.collector_plus ||
+                          profile?.is_collector_plus ||
+                          profile?.subscription_tier === 'collector_plus' ||
+                          profile?.plan === 'collector_plus') ? (
                           <div className="catalog-pricing-source-tabs" role="tablist" aria-label="Pricing source">
                             {[['combined','Combined'],['online','Online'],['in_store','In-Store']].map(([value,label]) => (
                               <button key={value} type="button" role="tab"
@@ -1666,10 +1666,10 @@ export default function CatalogItemPage({ scope }) {
                       // subscription/profile flag here as the paid membership model is wired in.
                       const hasCollectorPlus = Boolean(
                         isPlatformAdmin ||
-                        userProfile?.collector_plus ||
-                        userProfile?.is_collector_plus ||
-                        userProfile?.subscription_tier === 'collector_plus' ||
-                        userProfile?.plan === 'collector_plus'
+                        profile?.collector_plus ||
+                        profile?.is_collector_plus ||
+                        profile?.subscription_tier === 'collector_plus' ||
+                        profile?.plan === 'collector_plus'
                       )
 
                       const premiumInsights = [
