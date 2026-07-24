@@ -323,8 +323,8 @@
 /* Sidebar */
 .nv-wish-sidebar { align-self: start; }
 .nv-wish-sidebar-head {
-  text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.74rem; font-weight: 800;
-  color: var(--nv-ink-dim, #9fb0c6); margin: 0 0 10px;
+  text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.78rem; font-weight: 800;
+  color: var(--nv-ink, #e8eef7); margin: 0 0 12px;
 }
 .nv-wish-sidebar-sub {
   text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.68rem; font-weight: 700;
