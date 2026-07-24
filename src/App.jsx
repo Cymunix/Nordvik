@@ -4025,6 +4025,7 @@ function App() {
           .or(
             [
               `description.ilike.${like}`,
+              `card_number.ilike.${like}`,
               `bricklink_id.ilike.${like}`,
               `lego_set_number.ilike.${like}`,
               `minifig_code.ilike.${like}`,
