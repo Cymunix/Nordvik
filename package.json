@@ -8,6 +8,8 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "import:onepiece": "node --env-file=.env importer/run.ts",
+    "import:onepiece:dry": "node importer/run.ts --dry-run",
     "import:scryfall": "node scripts/import-scryfall-bulk.mjs",
     "setup:music": "node scripts/setup-music.mjs",
     "dedup:subjects": "node scripts/dedup-subjects.mjs",
