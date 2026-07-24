@@ -219,7 +219,7 @@ export default function WishlistPage({ scope }) {
                             </div>
 
                             <div className="nv-wish-price">
-                              <span className="nv-wish-col-label">Est. Price (CAD)</span>
+                              <span className="nv-wish-col-label">Est. Price (CAD) <span className="nv-wish-info-i">&#9432;</span></span>
                               {price != null ? (
                                 <strong>{formatUsd(price)}</strong>
                               ) : (
@@ -230,8 +230,8 @@ export default function WishlistPage({ scope }) {
                             </div>
 
                             <div className="nv-wish-avail">
-                              <span className="nv-wish-col-label">Availability</span>
-                              <span className="nv-wish-hint">Not enough data yet</span>
+                              <span className="nv-wish-col-label">Availability <span className="nv-wish-info-i">&#9432;</span></span>
+                              <span className="nv-wish-avail-status"><span className="nv-wish-dot" />Not enough data yet</span>
                             </div>
 
                             <div className="nv-wish-actions">
@@ -239,7 +239,7 @@ export default function WishlistPage({ scope }) {
                                 &#43; Collect
                               </button>
                               <button type="button" className="catalog-action-pill" onClick={() => handleOpenCatalogItem(item)}>
-                                View Catalogue Card
+                                &#128463; View Catalogue Card
                               </button>
                               {wishlistRemoveConfirmId === item.id ? (
                                 <div className="collection-item-remove-confirm">

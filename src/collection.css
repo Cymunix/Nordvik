@@ -296,6 +296,9 @@
 .nv-wish-na { color: var(--nv-ink-dim, #9fb0c6) !important; font-weight: 700; }
 .nv-wish-hint { font-size: 0.72rem; color: var(--nv-ink-dim, #9fb0c6); }
 .nv-wish-dash { color: var(--nv-ink-dim, #9fb0c6); }
+.nv-wish-info-i { color: var(--nv-ink-dim, #9fb0c6); font-size: 0.72rem; opacity: 0.7; }
+.nv-wish-avail-status { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--nv-ink-dim, #9fb0c6); }
+.nv-wish-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--nv-ink-dim, #9fb0c6); display: inline-block; flex-shrink: 0; }
 .nv-wish-actions { display: flex; flex-direction: column; gap: 8px; }
 .nv-wish-actions .catalog-action-pill { width: 100%; justify-content: center; }
 .nv-wish-collect { background: #22a06b !important; border-color: #22a06b !important; color: #fff !important; }
