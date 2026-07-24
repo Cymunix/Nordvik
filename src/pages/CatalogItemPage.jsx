@@ -205,6 +205,40 @@ export default function CatalogItemPage({ scope }) {
     tagPopReportSearchUrl,
     wishlistItemIds
   } = scope
+  const [showFullDesc, setShowFullDesc] = React.useState(false)
+  const [adminMenuOpen, setAdminMenuOpen] = React.useState(false)
+  // Front image + thumbnails for the hero gallery.
+  const heroImageUrlOf = (img) => img
+    ? (img.image_path?.startsWith('http') ? img.image_path : supabase.storage.from('item-images').getPublicUrl(img.image_path).data?.publicUrl)
+    : null
+  const heroImages = catalogItemImages || []
+  const heroFrontUrl = heroImageUrlOf(heroImages.find((i) => i.position === 0) || heroImages[0])
+  const heroDesc = selectedCatalogItem?._details?.description || selectedCatalogItem?.description || ''
+  const heroTags = [...new Set([
+    selectedCatalogItem?._details?.category,
+    selectedCatalogItem?._details?.subcategory,
+    !selectedCatalogItemCategoryLabels.hideFranchise ? selectedCatalogItem?._details?.franchise : null,
+    selectedCatalogItem?._details?.brand,
+    String(selectedCatalogItem?._details?.release_year ?? selectedCatalogItem?.release_year ?? ''),
+  ].filter(Boolean))]
+  const heroBreadcrumb = [...new Set([
+    !selectedCatalogItemCategoryLabels.hideFranchise ? selectedCatalogItem?._details?.franchise : null,
+    selectedCatalogItem?._details?.subcategory,
+    selectedCatalogItem?._details?.brand,
+  ].filter(Boolean))]
+  const heroWishlisted = wishlistItemIds.has(selectedCatalogItem?.id)
+  const toggleHeroWishlist = async () => {
+    if (!currentUser?.id || !selectedCatalogItem?.id) return
+    const itemId = selectedCatalogItem.id
+    if (wishlistItemIds.has(itemId)) {
+      setWishlistItemIds((prev) => { const next = new Set(prev); next.delete(itemId); return next })
+      await supabase.from('wishlist_items').delete().eq('user_id', currentUser.id).eq('catalog_item_id', itemId)
+    } else {
+      setWishlistItemIds((prev) => new Set([...prev, itemId]))
+      await supabase.from('wishlist_items').upsert({ user_id: currentUser.id, catalog_item_id: itemId }, { onConflict: 'user_id,catalog_item_id', ignoreDuplicates: true })
+    }
+  }
+  const heroAddToCollection = () => (quickAddMode ? performQuickAdd(selectedCatalogItem) : handleOpenAddToCollectionModal(selectedCatalogItem?.id))
   return (
           <section className="catalog-detail-screen" aria-label="Catalog item detail">
             <div className="catalog-detail-head">
@@ -289,13 +323,46 @@ export default function CatalogItemPage({ scope }) {
 
             {selectedCatalogItem ? (
               <>
-                <header className="catalog-detail-title-row">
-                  <div className="catalog-detail-title-block">
+                <header className="catalog-detail-hero">
+                  {/* LEFT — image gallery */}
+                  <div className="catalog-detail-hero-media">
+                    <div className="catalog-detail-hero-image">
+                      {heroFrontUrl
+                        ? <img src={heroFrontUrl} alt={selectedCatalogItem.name || 'Catalogue item'} className="catalog-zoomable" onClick={() => openLightbox(heroFrontUrl)} />
+                        : <div className="catalog-item-image-placeholder">N/A</div>}
+                    </div>
+                    {heroImages.length > 1 && (
+                      <div className="catalog-detail-hero-thumbs">
+                        {heroImages.slice(0, 5).map((img, i) => {
+                          const u = heroImageUrlOf(img)
+                          return (
+                            <button key={img.id || i} type="button" className="catalog-detail-hero-thumb" onClick={() => u && openLightbox(u)}>
+                              {u ? <img src={u} alt="" /> : <span>?</span>}
+                            </button>
+                          )
+                        })}
+                        {heroImages.length > 5 && <span className="catalog-detail-hero-thumb catalog-detail-hero-thumb-more">+{heroImages.length - 5}</span>}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* MIDDLE — title / breadcrumb / meta / tags / description */}
+                  <div className="catalog-detail-hero-info">
                     <h1 className="catalog-detail-title">
                       {selectedCatalogItemCategoryLabels.hideFranchise
                         ? (selectedCatalogItem._details?.collectible_set || selectedCatalogItem.name || 'N/A')
                         : (selectedCatalogItem._details?.subject || selectedCatalogItem.name || 'N/A')}
                     </h1>
+                    {heroBreadcrumb.length > 0 && (
+                      <div className="catalog-detail-hero-breadcrumb">
+                        {heroBreadcrumb.map((b, i) => (
+                          <React.Fragment key={i}>
+                            {i > 0 && <span className="catalog-detail-hero-crumb-sep">•</span>}
+                            <span>{b}</span>
+                          </React.Fragment>
+                        ))}
+                      </div>
+                    )}
                     <div className="catalog-detail-meta-list">
                       {selectedCatalogItem._details?.card_number && (
                         <span className="catalog-detail-meta-item">
@@ -308,93 +375,71 @@ export default function CatalogItemPage({ scope }) {
                         </span>
                       )}
                     </div>
-                    <div className="catalog-detail-meta-list">
-                      {selectedCatalogItem._details?.subcategory && (
-                        <span className="catalog-detail-meta-item">
-                          <span className="catalog-detail-label">{selectedCatalogItemCategoryLabels.subcategory}</span>
-                          <button type="button" className="catalog-detail-meta-link" onClick={() => {
-                            setCatalogCategory(selectedCatalogItem._details.category || 'all')
-                            setCatalogSubcategory(selectedCatalogItem._details.subcategory)
-                            setCatalogFranchise('all')
-                            setCatalogSetId('')
-                            setCurrentScreen('catalog')
-                          }}>{selectedCatalogItem._details.subcategory}</button>
-                        </span>
-                      )}
-                      {selectedCatalogItem._details?.franchise && !selectedCatalogItemCategoryLabels.hideFranchise && (
-                        <span className="catalog-detail-meta-item">
-                          <span className="catalog-detail-label">{selectedCatalogItemCategoryLabels.franchise}</span>
-                          <button type="button" className="catalog-detail-meta-link" onClick={() => {
-                            setCatalogCategory(selectedCatalogItem._details.category || 'all')
-                            setCatalogSubcategory(selectedCatalogItem._details.subcategory || '')
-                            setCatalogFranchise(selectedCatalogItem._details.franchise_id || selectedCatalogItem._details.franchise || 'all')
-                            setCatalogSetId('')
-                            setCurrentScreen('catalog')
-                          }}>{selectedCatalogItem._details.franchise}</button>
-                        </span>
-                      )}
-                      {selectedCatalogItemCategoryLabels.hideFranchise
-                        ? (selectedCatalogItem._details?.subject && (
-                            <span className="catalog-detail-meta-item">
-                              <span className="catalog-detail-label">{selectedCatalogItemCategoryLabels.subject}</span>
-                              <span className="catalog-detail-info-value">{selectedCatalogItem._details.subject}</span>
-                            </span>
-                          ))
-                        : (selectedCatalogItem._details?.collectible_set && (
-                            <span className="catalog-detail-meta-item">
-                              <span className="catalog-detail-label">{selectedCatalogItemCategoryLabels.collectibleSet}</span>
-                              <button type="button" className="catalog-detail-meta-link" onClick={() => {
-                                setCatalogCategory(selectedCatalogItem._details.category || 'all')
-                                setCatalogSubcategory(selectedCatalogItem._details.subcategory || '')
-                                setCatalogFranchise(selectedCatalogItem._details.franchise_id || selectedCatalogItem._details.franchise || 'all')
-                                setCatalogSetId(selectedCatalogItem._details.collectible_set_id || '')
-                                setCurrentScreen('catalog')
-                              }}>{selectedCatalogItem._details.collectible_set}</button>
-                            </span>
-                          ))
-                      }
-                    </div>
-                  </div>
-                  <CardVariants
-                    itemId={selectedCatalogItem.id}
-                    cardNumber={selectedCatalogItem._details?.card_number}
-                    franchiseId={selectedCatalogItem._details?.franchise_id}
-                    onOpenItem={openCatalogItemById}
-                  />
-                  <div className="catalog-detail-actions">
-                    {isPlatformAdmin && !isCatalogItemEditMode && (
-                      <button type="button" className="catalog-detail-btn catalog-detail-btn-edit" onClick={handleOpenCatalogItemEdit}>
-                        Edit Item
-                      </button>
+                    {heroTags.length > 0 && (
+                      <div className="catalog-detail-hero-tags">
+                        {heroTags.map((tg, i) => <span key={i} className="catalog-detail-tag">{tg}</span>)}
+                      </div>
                     )}
-                    <button
-                      type="button"
-                      className="catalog-detail-btn catalog-detail-btn-collect"
-                      onClick={() => quickAddMode ? performQuickAdd(selectedCatalogItem) : handleOpenAddToCollectionModal(selectedCatalogItem?.id)}
-                    >
+                    {heroDesc && (
+                      <div className="catalog-detail-hero-desc">
+                        <p className={showFullDesc ? '' : 'catalog-detail-hero-desc-clamp'}>{heroDesc}</p>
+                        {heroDesc.length > 110 && (
+                          <button type="button" className="catalog-detail-meta-link" onClick={() => setShowFullDesc((v) => !v)}>
+                            {showFullDesc ? 'Hide description ▲' : 'View full description ▾'}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    <CardVariants
+                      itemId={selectedCatalogItem.id}
+                      cardNumber={selectedCatalogItem._details?.card_number}
+                      franchiseId={selectedCatalogItem._details?.franchise_id}
+                      onOpenItem={openCatalogItemById}
+                    />
+                  </div>
+
+                  {/* RIGHT — YOUR COLLECTION panel */}
+                  <aside className="catalog-detail-collection-panel">
+                    <div className="ccp-head">
+                      <span className="ccp-title">YOUR COLLECTION</span>
+                      {isPlatformAdmin && (
+                        <div className="ccp-admin">
+                          <button type="button" className="ccp-admin-trigger" onClick={() => setAdminMenuOpen((o) => !o)}>
+                            &#9881; Admin &#9662;
+                          </button>
+                          {adminMenuOpen && (
+                            <div className="ccp-admin-menu" role="menu">
+                              {!isCatalogItemEditMode && (
+                                <button type="button" onClick={() => { setAdminMenuOpen(false); handleOpenCatalogItemEdit() }}>Edit Item</button>
+                              )}
+                              <button type="button" onClick={() => { setAdminMenuOpen(false); setCatalogDetailViewTab('manageImages') }}>Manage Images</button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <div className="ccp-owned-row">
+                      <span className="ccp-label">OWNED</span>
+                      <div className="ccp-stepper">
+                        <button type="button" onClick={() => handleOpenAddToCollectionModal(selectedCatalogItem?.id)} aria-label="Manage collection">&minus;</button>
+                        <span className="ccp-owned-count">{ownershipCount}</span>
+                        <button type="button" onClick={heroAddToCollection} aria-label="Add to collection">+</button>
+                      </div>
+                    </div>
+                    <div className="ccp-stats">
+                      <div className="ccp-stat"><span className="ccp-label">AVAILABLE</span><strong>{catalogDetailStats ? catalogDetailStats.available_count : '—'}</strong></div>
+                      <div className="ccp-stat"><span className="ccp-label">WANTED</span><strong>{catalogDetailStats ? catalogDetailStats.wanted_count : '—'}</strong></div>
+                    </div>
+                    <button type="button" className="catalog-detail-btn catalog-detail-btn-collect" onClick={heroAddToCollection}>
                       {quickAddMode ? (quickAddMode === 'gift' ? 'Collect (Gift)' : 'Collect (Purchase)') : 'Add to My Collection'}
                     </button>
-                    <button
-                      type="button"
-                      className="catalog-detail-btn catalog-detail-btn-wishlist"
-                      onClick={async () => {
-                        if (!currentUser?.id || !selectedCatalogItem?.id) return
-                        const itemId = selectedCatalogItem.id
-                        if (wishlistItemIds.has(itemId)) {
-                          setWishlistItemIds(prev => { const next = new Set(prev); next.delete(itemId); return next })
-                          await supabase.from('wishlist_items').delete().eq('user_id', currentUser.id).eq('catalog_item_id', itemId)
-                        } else {
-                          setWishlistItemIds(prev => new Set([...prev, itemId]))
-                          await supabase.from('wishlist_items').upsert({ user_id: currentUser.id, catalog_item_id: itemId }, { onConflict: 'user_id,catalog_item_id', ignoreDuplicates: true })
-                        }
-                      }}
-                    >
-                      {wishlistItemIds.has(selectedCatalogItem?.id) ? 'Wishlisted' : 'Add to My Wishlist'}
+                    <button type="button" className="catalog-detail-btn catalog-detail-btn-wishlist" onClick={toggleHeroWishlist}>
+                      {heroWishlisted ? 'Wishlisted' : 'Add to Wishlist'}
                     </button>
                     <a href="#" className="catalog-detail-owned-link" onClick={(event) => event.preventDefault()}>
                       You own {ownershipCount} of these items
                     </a>
-                  </div>
+                  </aside>
                 </header>
 
                 <div className="catalog-detail-tabs" role="tablist" aria-label="Item detail tabs">
