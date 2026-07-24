@@ -122,6 +122,8 @@ export default function CatalogPage({ scope }) {
     catalogPrintTypes,
     catalogProductLineId,
     catalogProductLineOptions,
+    catalogPropertyId,
+    catalogPropertyOptions,
     catalogRarities,
     catalogRarityId,
     catalogSeriesId,
@@ -257,6 +259,7 @@ export default function CatalogPage({ scope }) {
     setCatalogPageInput,
     setCatalogPrintTypeId,
     setCatalogProductLineId,
+    setCatalogPropertyId,
     setCatalogRarityId,
     setCatalogReloadToken,
     setCatalogSeriesId,
@@ -349,6 +352,7 @@ export default function CatalogPage({ scope }) {
   if (catalogBrandId) activeFilterChips.push({ key: 'brand', label: catalogBrandById[catalogBrandId] || 'Item Type', onRemove: () => setCatalogBrandId('') })
   if (catalogSubthemeId) activeFilterChips.push({ key: 'sth', label: (catalogSubthemeOptions.find((o) => o.id === catalogSubthemeId)?.name) || 'Subtheme', onRemove: () => setCatalogSubthemeId('') })
   if (catalogProductLineId) activeFilterChips.push({ key: 'pl', label: (catalogProductLineOptions.find((o) => o.id === catalogProductLineId)?.name) || 'Product Line', onRemove: () => setCatalogProductLineId('') })
+  if (catalogPropertyId) activeFilterChips.push({ key: 'prop', label: (catalogPropertyOptions.find((o) => o.id === catalogPropertyId)?.name) || 'Property', onRemove: () => setCatalogPropertyId('') })
   if (catalogSeriesId) activeFilterChips.push({ key: 'ser', label: (catalogSeriesOptions.find((o) => o.id === catalogSeriesId)?.name) || 'Series', onRemove: () => setCatalogSeriesId('') })
   if (catalogSubjectSearch) activeFilterChips.push({ key: 'subj', label: catalogSubjectSearch, onRemove: () => { setCatalogSubjectId(''); setCatalogSubjectSearch(''); setCatalogSubjectResults([]) } })
   if (catalogMinYear) activeFilterChips.push({ key: 'miny', label: `From ${catalogMinYear}`, onRemove: () => setCatalogMinYear('') })
@@ -826,6 +830,23 @@ export default function CatalogPage({ scope }) {
                     >
                       <option value="">All</option>
                       {catalogProductLineOptions.map((p) => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
+                  </>
+                )}
+
+                {/* Property (faceted) — the IP sub-level / set (e.g. One Piece "Romance Dawn") */}
+                {catalogPropertyOptions.length > 0 && (
+                  <>
+                    <label htmlFor="catalog-property">{catalogSidebarLabels.property}</label>
+                    <select
+                      id="catalog-property"
+                      value={catalogPropertyId}
+                      onChange={(event) => setCatalogPropertyId(event.target.value)}
+                    >
+                      <option value="">All</option>
+                      {catalogPropertyOptions.map((p) => (
                         <option key={p.id} value={p.id}>{p.name}</option>
                       ))}
                     </select>

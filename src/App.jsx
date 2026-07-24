@@ -1887,6 +1887,8 @@ function App() {
   const [catalogSubthemeOptions, setCatalogSubthemeOptions] = useState([])
   const [catalogProductLineId, setCatalogProductLineId] = useState('')
   const [catalogProductLineOptions, setCatalogProductLineOptions] = useState([])
+  const [catalogPropertyId, setCatalogPropertyId] = useState('')
+  const [catalogPropertyOptions, setCatalogPropertyOptions] = useState([])
   const [catalogSeriesId, setCatalogSeriesId] = useState('')
   const [catalogSeriesOptions, setCatalogSeriesOptions] = useState([])
   const [catalogPrintTypeId, setCatalogPrintTypeId] = useState('')
@@ -3446,11 +3448,15 @@ function App() {
   useEffect(() => {
     if (currentScreen !== 'catalog') return
     const franchiseId = selectedCatalogFranchiseRecord?.id || ''
-    if (!franchiseId) { setCatalogSubthemeOptions([]); setCatalogSubthemeId(prev => prev ? '' : prev); return }
+    const subcatId = selectedCatalogSubcategoryRecord?.id || ''
+    if (!franchiseId && !subcatId) { setCatalogSubthemeOptions([]); setCatalogSubthemeId(prev => prev ? '' : prev); return }
     let cancelled = false
     ;(async () => {
-      const { data: itemRows } = await supabase
-        .from('items').select('subset_id').eq('franchise_id', franchiseId).not('subset_id', 'is', null)
+      // Trading Cards items carry a subset but no franchise (the subcategory IS the
+      // franchise), so scope by whichever is selected.
+      let itemQ = supabase.from('items').select('subset_id').not('subset_id', 'is', null)
+      itemQ = franchiseId ? itemQ.eq('franchise_id', franchiseId) : itemQ.eq('subcategory_id', subcatId)
+      const { data: itemRows } = await itemQ
       const subsetIds = [...new Set((itemRows || []).map(r => r.subset_id))]
       let list = []
       if (subsetIds.length) {
@@ -3462,7 +3468,7 @@ function App() {
       setCatalogSubthemeId(prev => list.some(s => s.id === prev) ? prev : '')
     })()
     return () => { cancelled = true }
-  }, [currentScreen, selectedCatalogFranchiseRecord?.id])
+  }, [currentScreen, selectedCatalogFranchiseRecord?.id, selectedCatalogSubcategoryRecord?.id])
 
   // Faceted filter: Product Line options for the selected Theme (franchise) — the
   // "pick a Franchise first" flow. Product Line is subcategory-owned but franchise-
@@ -3490,6 +3496,34 @@ function App() {
     })()
     return () => { cancelled = true }
   }, [currentScreen, selectedCatalogFranchiseRecord?.id])
+
+  // Faceted filter: Property options — the IP sub-level / set (e.g. One Piece's
+  // "Romance Dawn"). Stored in item_properties (m2m) with a franchise_id on the
+  // property. Trading Cards items have no franchise, so map the selected
+  // subcategory to its linked franchise(s) and list their properties.
+  useEffect(() => {
+    if (currentScreen !== 'catalog') return
+    const franchiseId = selectedCatalogFranchiseRecord?.id || ''
+    const subcatId = selectedCatalogSubcategoryRecord?.id || ''
+    if (!franchiseId && !subcatId) { setCatalogPropertyOptions([]); setCatalogPropertyId(prev => prev ? '' : prev); return }
+    let cancelled = false
+    ;(async () => {
+      let franchiseIds = franchiseId ? [franchiseId] : []
+      if (!franchiseIds.length && subcatId) {
+        const { data: fs } = await supabase.from('franchise_subcategory').select('franchise_id').eq('subcategory_id', subcatId)
+        franchiseIds = [...new Set((fs || []).map(r => r.franchise_id).filter(Boolean))]
+      }
+      let list = []
+      if (franchiseIds.length) {
+        const { data } = await supabase.from('properties').select('property_id, name').in('franchise_id', franchiseIds).order('name')
+        list = (data || []).map(r => ({ id: r.property_id, name: r.name }))
+      }
+      if (cancelled) return
+      setCatalogPropertyOptions(list)
+      setCatalogPropertyId(prev => list.some(p => p.id === prev) ? prev : '')
+    })()
+    return () => { cancelled = true }
+  }, [currentScreen, selectedCatalogFranchiseRecord?.id, selectedCatalogSubcategoryRecord?.id])
 
   // Faceted filter: Series options. When a Theme (franchise) is selected, show only
   // the Series actually used by items in that Theme (series link to items, not
@@ -3869,6 +3903,13 @@ function App() {
         if (!plIds.length) { setCatalogItems([]); setCatalogTotalItemCount(0); setIsCatalogLoading(false); return }
         itemsQuery = itemsQuery.in('item_id', plIds)
       }
+      // Faceted: Property (item_properties m2m) — the IP sub-level / set.
+      if (catalogPropertyId) {
+        const { data: prRows } = await supabase.from('item_properties').select('item_id').eq('property_id', catalogPropertyId)
+        const prIds = (prRows || []).map(r => r.item_id)
+        if (!prIds.length) { setCatalogItems([]); setCatalogTotalItemCount(0); setIsCatalogLoading(false); return }
+        itemsQuery = itemsQuery.in('item_id', prIds)
+      }
       // Series facet (items.series_id) — not exposed by item_details, pre-query.
       if (catalogSeriesId) {
         const { data: seRows } = await supabase.from('items').select('item_id').eq('series_id', catalogSeriesId)
@@ -4098,6 +4139,7 @@ function App() {
     catalogSubsetId,
     catalogSubthemeId,
     catalogProductLineId,
+    catalogPropertyId,
     catalogSeriesId,
     catalogTeamId,
     currentScreen,
@@ -13681,6 +13723,8 @@ function App() {
     catalogPrintTypes,
     catalogProductLineId,
     catalogProductLineOptions,
+    catalogPropertyId,
+    catalogPropertyOptions,
     catalogRarities,
     catalogRarityId,
     catalogRawItemRow,
@@ -14147,6 +14191,7 @@ function App() {
     setCatalogPricingSource,
     setCatalogPrintTypeId,
     setCatalogProductLineId,
+    setCatalogPropertyId,
     setCatalogRarityId,
     setCatalogReloadToken,
     setCatalogSeriesId,
