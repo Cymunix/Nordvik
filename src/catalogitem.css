@@ -295,8 +295,12 @@
 .catalog-detail-screen .catalog-detail-collection-panel .catalog-detail-btn { width: 100%; justify-content: center; }
 .catalog-detail-screen .catalog-detail-collection-panel .catalog-detail-owned-link { text-align: center; }
 
-/* Market card's built-in image moved to the hero — hide the duplicate. */
+/* Market card's built-in image moved to the hero — hide the duplicate. The card
+   was a fixed 2-column grid (image | panel); with the image gone, collapse it to
+   a single column so the metrics/panel take the full width instead of squishing. */
 .catalog-detail-screen .catalog-detail-market-image-wrap { display: none; }
+.catalog-detail-screen .catalog-detail-market-card { display: block; }
+.catalog-detail-screen .catalog-detail-market-panel { width: 100%; }
 
 /* ═══════════════ Overview: 2-column dashboard grid ═══════════════ */
 .catalog-detail-screen .cd-ov-grid {
