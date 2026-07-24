@@ -631,13 +631,17 @@ const CATALOG_DYNAMIC_FIELDS_BY_SUBCATEGORY = {
     { key: 'life', label: 'Life', type: 'number' },
     { key: 'sub_types', label: 'Collection', type: 'text', aliases: ['sub_types', 'subtypes'] },
     { key: 'market_price', label: 'Market Price', type: 'number' },
-    // Variant provenance from the source export. Grouping itself is derived from
-    // the shared base card number (see items.card_number); these keep the origin.
-    { key: 'variant_group', label: 'Variant Group', type: 'text' },
-    { key: 'has_variants', label: 'Has Variants', type: 'text' },
-    { key: 'variant_count', label: 'Variant Count', type: 'number' },
   ],
 }
+// Source columns that are intentionally NOT imported: variant grouping is
+// DERIVED from the shared base card number (items.card_number), so a duplicate
+// "Variant Group"/"Has Variants" column carries no new information, and scrape
+// metadata is irrelevant. Listed here so the importer ignores them silently
+// instead of flagging them as unmapped. (Normalized header form.)
+const BULK_IGNORE_HEADERS = new Set([
+  'variant_group', 'has_variants', 'variant_count',
+  'inventory_price', 'date_scraped', 'card_image_id',
+])
 
 // Resolve the dynamic-field definitions for a category, preferring a
 // subcategory-specific set when one exists.
@@ -8854,8 +8858,13 @@ function App() {
       const dynKey = dynamicByNorm[normDyn(raw)]
       if (field && allowedForCategory && fieldIndex[field] === undefined) fieldIndex[field] = i
       else if (dynKey && dynamicIndex[dynKey] === undefined) dynamicIndex[dynKey] = i
+      else if (BULK_IGNORE_HEADERS.has(norm)) { /* intentionally not imported */ }
       else if (norm) unknownHeaders.push({ header: raw.trim(), index: i })
     })
+    // For card categories the card number often arrives as an "ID Number" column
+    // (e.g. One Piece OP01-077). items has no id_number field, so route it to
+    // card_number when there's no explicit card-number column.
+    const isCardCategory = categoryName === 'Trading Cards' || categoryName === 'Sports Cards'
     const unknownList = unknownHeaders.map(u => u.header)
     return lines.slice(1).filter(l => l.trim()).map((line, idx) => {
       const f = parseRow(line)
@@ -8912,7 +8921,7 @@ function App() {
         retail_price: gv('retail_price'),
         species_id: '',
         species_name: gv('species'),
-        card_number: gv('card_number'),
+        card_number: gv('card_number') || (isCardCategory ? gv('id_number') : ''),
         print_count: gv('print_count'),
         print_type_id: '',
         print_type_name: gv('print_type'),
