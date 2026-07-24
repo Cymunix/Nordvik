@@ -35,7 +35,7 @@ export default function WishlistPage({ scope }) {
             <div className="catalog-head">
               <div>
                 <h1>My Wishlist</h1>
-                <p className="subtitle catalog-subtitle">Items you want — add them to your collection when you get them.</p>
+                <p className="subtitle catalog-subtitle">Items you're hoping to add to your collection — plan, track and collect.</p>
               </div>
               <div className="catalog-actions">
                 <button type="button" className="catalog-action-pill" onClick={handleOpenCatalog}>
@@ -55,7 +55,7 @@ export default function WishlistPage({ scope }) {
               <div className="collection-layout">
                 <aside className="catalog-card collection-sidebar" aria-label="Wishlist filters">
                   <div className="collection-sidebar-section">
-                    <p className="collection-sidebar-title">My Wishlist</p>
+                    <p className="collection-sidebar-title">Filters</p>
                     <button
                       type="button"
                       className={`collection-sidebar-link ${wishlistCategoryFilter === 'all' ? 'active' : ''}`}
@@ -134,34 +134,54 @@ export default function WishlistPage({ scope }) {
                         </article>
                       </section>
 
-                      <section className="collection-list" aria-label="Wishlist items">
-                        {paginatedWishlistItems.map(item => (
-                          <article key={`wishlist-item-${item.id}`} className="catalog-card collection-item-row">
-                            {item.imageUrl ? (
-                              <img className="collection-item-image" src={item.imageUrl} alt={item.name} loading="lazy" />
-                            ) : (
-                              <div className="collection-item-image collection-item-image-placeholder">No image</div>
-                            )}
-
-                            <div className="collection-item-body">
-                              <h3>{item.name}</h3>
-                              <p className="collection-item-meta">
-                                {[item.releaseYear, item.setName, item.categoryName].filter(Boolean).join(' | ')}
-                              </p>
-                              <div className="collection-item-stats">
-                                <span>Est. Price: {item.market_price != null && Number(item.market_price) > 0 ? formatUsd(item.market_price) : '—'}</span>
-                              </div>
-                              {ownedCatalogItemCounts[item.id] > 0 && (
-                                <p className="collection-item-meta" style={{ color: '#1a4ecf', fontWeight: 600 }}>
-                                  You own {ownedCatalogItemCounts[item.id]}
-                                </p>
+                      <section className="collection-list nv-wish-list" aria-label="Wishlist items">
+                        {paginatedWishlistItems.map(item => {
+                          const hasPrice = item.market_price != null && Number(item.market_price) > 0
+                          return (
+                          <article key={`wishlist-item-${item.id}`} className="catalog-card nv-wish-row">
+                            <div className="nv-wish-media">
+                              {item.imageUrl ? (
+                                <img src={item.imageUrl} alt={item.name} loading="lazy" />
+                              ) : (
+                                <div className="nv-wish-noimg">No image</div>
                               )}
                             </div>
 
-                            <div className="collection-item-actions">
+                            <div className="nv-wish-info">
+                              <h3>{item.name}</h3>
+                              <p className="nv-wish-meta">
+                                {[item.releaseYear, item.categoryName, item.setName].filter(Boolean).join('  ·  ')}
+                              </p>
+                              {item.setName && (
+                                <div className="nv-wish-tags">
+                                  <span className="nv-wish-tag">{item.setName}</span>
+                                </div>
+                              )}
+                              {ownedCatalogItemCounts[item.id] > 0 && (
+                                <p className="nv-wish-owned">✓ You own {ownedCatalogItemCounts[item.id]}</p>
+                              )}
+                            </div>
+
+                            <div className="nv-wish-price">
+                              <span className="nv-wish-col-label">Est. Price (CAD)</span>
+                              {hasPrice ? (
+                                <strong>{formatUsd(item.market_price)}</strong>
+                              ) : (
+                                <><strong className="nv-wish-na">N/A</strong><span className="nv-wish-hint">Not enough data yet</span></>
+                              )}
+                              <span className="nv-wish-col-label nv-wish-col-label-2">Last Seen Price</span>
+                              <span className="nv-wish-dash">—</span>
+                            </div>
+
+                            <div className="nv-wish-avail">
+                              <span className="nv-wish-col-label">Availability</span>
+                              <span className="nv-wish-hint">Not enough data yet</span>
+                            </div>
+
+                            <div className="nv-wish-actions">
                               <button
                                 type="button"
-                                className="catalog-action-pill"
+                                className="catalog-action-pill nv-wish-collect"
                                 onClick={() => {
                                   setSelectedCatalogItem(item)
                                   handleOpenAddToCollectionModal(item.id)
@@ -195,7 +215,7 @@ export default function WishlistPage({ scope }) {
                               )}
                             </div>
                           </article>
-                        ))}
+                        )})}
                       </section>
 
                       {wishlistTotalPages > 1 && (
