@@ -9441,6 +9441,52 @@ function App() {
       return id
     }
 
+    // Bulk save runs in phases so N rows cost a handful of round-trips instead of
+    // ~3N. Phase 1 resolves taxonomy + subjects per row (caches make repeats free)
+    // and builds each item's payload with a CLIENT-generated item_id — so we know
+    // every id up front and never depend on insert return order. Phases 2–3 then
+    // batch-insert the items and all their child links.
+    const newItemId = () =>
+      (typeof crypto !== 'undefined' && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(16).slice(2)}-${Math.random().toString(16).slice(2)}`
+    const subjectIdCache = new Map()        // subject_name_lc → subject_id (avoids re-lookup/create)
+    const subjectFranchiseDone = new Set()  // `${subjectId}::${franchiseId}` already linked
+    const resolveSubjectId = async (row, rowFranchiseId) => {
+      let subjectId = row.subjectObj?.id || null
+      const trimmedName = row.subject_name?.trim()
+      if (!subjectId && trimmedName) {
+        const key = trimmedName.toLowerCase()
+        if (subjectIdCache.has(key)) {
+          subjectId = subjectIdCache.get(key)
+        } else {
+          const { data: existingSubs } = await supabase
+            .from('subjects').select('subject_id').ilike('subject_name', trimmedName).limit(1)
+          subjectId = existingSubs?.[0]?.subject_id || null
+          if (!subjectId) {
+            const { data: newSub } = await supabase
+              .from('subjects').insert({ subject_name: trimmedName, subject_type: getBulkSubjectType(row) })
+              .select('subject_id').single()
+            subjectId = newSub?.subject_id || null
+          }
+          if (subjectId) subjectIdCache.set(key, subjectId)
+        }
+      }
+      if (subjectId && rowFranchiseId) {
+        const fk = `${subjectId}::${rowFranchiseId}`
+        if (!subjectFranchiseDone.has(fk)) {
+          await supabase.from('subject_franchise').upsert(
+            { subject_id: subjectId, franchise_id: rowFranchiseId }, { onConflict: 'subject_id,franchise_id' })
+          subjectFranchiseDone.add(fk)
+        }
+      }
+      if (subjectId && row.species_id) {
+        await supabase.from('subjects').update({ species_id: row.species_id }).eq('subject_id', subjectId)
+      }
+      return subjectId
+    }
+    const pending = []  // { payload, row, itemId, subjectId, cardTypeIds, teamIds, propertyIds, productLineIds, imageFile, imageUrl }
+
     for (const row of toSave) {
       // ── Resolve franchise / brand / collectible set per row ────────────────
       let rowFranchiseId     = null
@@ -9523,126 +9569,137 @@ function App() {
         const charName = row.subjectObj?.name || row.subject_name?.trim() || ''
         mintedCode = await mintMinifigCode(rowFranchiseId, row.collectible_set_name, charName) || null
       }
-      // ── Create new item ────────────────────────────────────────────────────
-      const { data: created, error } = await supabase.from('items').insert({
-        name:                 row.item_name?.trim()         || null,
-        category_id:          catalogAdminCategoryId        || null,
-        subcategory_id:       rowSubcategoryId              || null,
-        // Trading Cards: Subcategory IS the franchise — never a separate franchise.
-        franchise_id:         selectedCatalogAdminCategoryName === 'Trading Cards' ? null : (rowFranchiseId || null),
-        brand_id:             rowBrandId                    || null,
-        collectible_set_id:   rowCollectibleSetId           || null,
-        subcollectble_set_id: row.subcollectble_set_id       || null,
-        subset_id:            rowSubsetId                    || null,
-        series_id:            rowSeriesId                    || null,
-        print_type_id:        row.print_type_id              || null,
-        bricklink_id:         blId                           || null,
-        rebrickable_fig_id:   row.rebrickable_fig_id?.trim() || null,
-        piece_count:          row.piece_count !== '' ? Number(row.piece_count) : null,
-        print_count:          row.print_count !== '' ? Number(row.print_count) : null,
-        upc:                  row.upc?.trim()                || null,
-        description:          row.description?.trim()        || null,
-        card_number:          row.card_number?.trim()        || null,
-        release_year:         row.release_year !== '' ? Number(row.release_year) : null,
-        // Per-game attributes (One Piece stats etc.) captured from the import.
-        dynamic_fields:       (row.dynamic_fields && Object.keys(row.dynamic_fields).length) ? row.dynamic_fields : {},
-        rarity_id:            row.rarity_id                  || null,
-        minifig_code:         mintedCode,
-        lego_set_number:      row.lego_set_number?.trim()    || null,
-        retail_price:         row.retail_price !== '' && row.retail_price != null && Number.isFinite(Number(row.retail_price)) ? Number(row.retail_price) : null,
-      }).select('item_id').single()
-      if (error) {
-        updateBulkRow(row._origIdx, { status: 'error', errorMsg: error.message })
-        continue
-      }
-      if (isLegoCategory && blId) bricklinkItemCache.set(blId, created.item_id)
-      savedItems.push({ itemId: created.item_id, row }) // links resolved in the post-pass
-      // Subjects are optional and only assigned from an explicit Subject value —
-      // the item's own name is NOT a Subject.
-      let subjectId = row.subjectObj?.id || null
-      if (!subjectId && row.subject_name?.trim()) {
-        const trimmedName = row.subject_name.trim()
-        // Look up existing subject by name before creating a new one
-        const { data: existingSubs } = await supabase
-          .from('subjects')
-          .select('subject_id')
-          .ilike('subject_name', trimmedName)
-          .limit(1)
-        subjectId = existingSubs?.[0]?.subject_id || null
-        if (!subjectId) {
-          const { data: newSub } = await supabase
-            .from('subjects')
-            .insert({ subject_name: trimmedName, subject_type: getBulkSubjectType(row) })
-            .select('subject_id')
-            .single()
-          subjectId = newSub?.subject_id || null
-        }
-        if (subjectId && rowFranchiseId) {
-          await supabase.from('subject_franchise').upsert(
-            { subject_id: subjectId, franchise_id: rowFranchiseId },
-            { onConflict: 'subject_id,franchise_id' }
-          )
+      // ── Resolve subject up front so it goes INTO the item insert (no follow-up
+      //    UPDATE), and resolve facet ids now (creating taxonomy); the item_*
+      //    link rows are batched in phase 3. ──
+      const subjectId = await resolveSubjectId(row, rowFranchiseId)
+      const propertyIds = new Set(row.product_line_ids || []) // picked ids target properties
+      if (rowFranchiseId && row.property_names?.trim()) {
+        for (const nm of row.property_names.split(';').map(s => s.trim()).filter(Boolean)) {
+          const pid = await resolveOrCreateProperty(nm, rowSubsetId, rowFranchiseId)
+          if (pid) propertyIds.add(pid)
         }
       }
-      if (subjectId) {
-        await supabase.from('items').update({ subject_id: subjectId }).eq('item_id', created.item_id)
-        await supabase.from('item_subjects').insert({ item_id: created.item_id, subject_id: subjectId })
-        if (row.species_id) {
-          await supabase.from('subjects').update({ species_id: row.species_id }).eq('subject_id', subjectId)
-        }
-      }
-      if (row.card_type_ids?.length > 0) {
-        const { error: ctErr } = await supabase.from('item_card_types').insert(row.card_type_ids.map(ctid => ({ item_id: created.item_id, card_type_id: ctid })))
-        if (ctErr) console.error('item_card_types insert error (bulk):', ctErr)
-      }
-      if (row.team_ids?.length > 0) {
-        const { error: tmErr } = await supabase.from('item_teams').insert(row.team_ids.map(tid => ({ item_id: created.item_id, team_id: tid })))
-        if (tmErr) console.error('item_teams insert error (bulk):', tmErr)
-      }
-      // ── Faceted: Property (IP sub-level) — resolves against the Franchise. ──
-      if (rowFranchiseId && (row.property_names?.trim() || (row.product_line_ids || []).length)) {
-        const propIds = new Set(row.product_line_ids || []) // picked ids target properties
-        if (row.property_names?.trim()) {
-          for (const nm of row.property_names.split(';').map(s => s.trim()).filter(Boolean)) {
-            const pid = await resolveOrCreateProperty(nm, rowSubsetId, rowFranchiseId)
-            if (pid) propIds.add(pid)
-          }
-        }
-        if (propIds.size > 0) {
-          const { error: prErr } = await supabase.from('item_properties')
-            .insert([...propIds].map(pid => ({ item_id: created.item_id, property_id: pid })))
-          if (prErr) console.error('item_properties insert error (bulk):', prErr)
-        }
-      }
-      // ── Faceted: Product Line (commercial line) — owned by the Subcategory. ──
+      const productLineIds = new Set()
       if (rowSubcategoryId && row.product_line_names?.trim()) {
-        const plIds = new Set()
         for (const nm of row.product_line_names.split(';').map(s => s.trim()).filter(Boolean)) {
           const plId = await resolveOrCreateProductLine(nm, rowSubcategoryId, rowFranchiseId)
-          if (plId) plIds.add(plId)
-        }
-        if (plIds.size > 0) {
-          const { error: plErr } = await supabase.from('item_product_lines')
-            .insert([...plIds].map(plid => ({ item_id: created.item_id, product_line_id: plid })))
-          if (plErr) console.error('item_product_lines insert error (bulk):', plErr)
+          if (plId) productLineIds.add(plId)
         }
       }
-      if (row.image_file) {
-        const ext = row.image_file.name.split('.').pop()
-        const path = `items/${created.item_id}/${Date.now()}_0.${ext}`
-        const { error: upErr } = await supabase.storage.from('item-images').upload(path, row.image_file)
-        if (!upErr) await supabase.from('item_images').insert({ item_id: created.item_id, image_path: path, position: 0 })
-      } else if (row.image_url?.trim()) {
-        const u = row.image_url.trim()
-        const isImageUrl = /\.(jpe?g|png|webp|gif|avif|svg)(\?.*)?$/i.test(u)
-        if (isImageUrl) {
-          await supabase.from('item_images').insert({ item_id: created.item_id, image_path: u, position: 0 })
-        }
-      }
-      updateBulkRow(row._origIdx, { status: 'saved' })
+      const itemId = newItemId()
+      if (isLegoCategory && blId) bricklinkItemCache.set(blId, itemId)
+      pending.push({
+        row,
+        itemId,
+        subjectId,
+        cardTypeIds: row.card_type_ids || [],
+        teamIds: row.team_ids || [],
+        propertyIds: [...propertyIds],
+        productLineIds: [...productLineIds],
+        imageFile: row.image_file || null,
+        imageUrl: row.image_url || '',
+        payload: {
+          item_id:              itemId,
+          name:                 row.item_name?.trim()         || null,
+          category_id:          catalogAdminCategoryId        || null,
+          subcategory_id:       rowSubcategoryId              || null,
+          // Trading Cards: Subcategory IS the franchise — never a separate franchise.
+          franchise_id:         selectedCatalogAdminCategoryName === 'Trading Cards' ? null : (rowFranchiseId || null),
+          brand_id:             rowBrandId                    || null,
+          collectible_set_id:   rowCollectibleSetId           || null,
+          subcollectble_set_id: row.subcollectble_set_id       || null,
+          subset_id:            rowSubsetId                    || null,
+          series_id:            rowSeriesId                    || null,
+          print_type_id:        row.print_type_id              || null,
+          bricklink_id:         blId                           || null,
+          rebrickable_fig_id:   row.rebrickable_fig_id?.trim() || null,
+          piece_count:          row.piece_count !== '' ? Number(row.piece_count) : null,
+          print_count:          row.print_count !== '' ? Number(row.print_count) : null,
+          upc:                  row.upc?.trim()                || null,
+          description:          row.description?.trim()        || null,
+          card_number:          row.card_number?.trim()        || null,
+          release_year:         row.release_year !== '' ? Number(row.release_year) : null,
+          // Per-game attributes (One Piece stats etc.) captured from the import.
+          dynamic_fields:       (row.dynamic_fields && Object.keys(row.dynamic_fields).length) ? row.dynamic_fields : {},
+          rarity_id:            row.rarity_id                  || null,
+          minifig_code:         mintedCode,
+          lego_set_number:      row.lego_set_number?.trim()    || null,
+          retail_price:         row.retail_price !== '' && row.retail_price != null && Number.isFinite(Number(row.retail_price)) ? Number(row.retail_price) : null,
+          subject_id:           subjectId                     || null,
+        },
+      })
+    }
+
+    // ── PHASE 2: batch-insert the items (chunked). On a chunk error fall back to
+    //    per-row inserts so one bad row can't fail the whole chunk. ──
+    const okItems = []
+    const ITEM_CHUNK = 200
+    // Use the item_id the DB actually stored (RETURNING follows VALUES order for a
+    // single bulk insert), so child links are correct even if the client id isn't
+    // honored. markSaved records that authoritative id.
+    const markSaved = (c, realId) => {
+      c.itemId = realId
+      okItems.push(c)
+      savedItems.push({ itemId: realId, row: c.row }) // links resolved in the LEGO post-pass
+      updateBulkRow(c.row._origIdx, { status: 'saved' })
       saved++
+    }
+    for (let i = 0; i < pending.length; i += ITEM_CHUNK) {
+      const chunk = pending.slice(i, i + ITEM_CHUNK)
+      const { data: created, error: chunkErr } = await supabase
+        .from('items').insert(chunk.map((c) => c.payload)).select('item_id')
+      if (!chunkErr && created && created.length === chunk.length) {
+        chunk.forEach((c, j) => markSaved(c, created[j].item_id))
+      } else {
+        // Fall back to per-row (also covers a length mismatch) so one bad row
+        // can't fail the whole chunk.
+        for (const c of chunk) {
+          const { data: one, error: oneErr } = await supabase
+            .from('items').insert(c.payload).select('item_id').single()
+          if (oneErr) updateBulkRow(c.row._origIdx, { status: 'error', errorMsg: oneErr.message })
+          else markSaved(c, one.item_id)
+        }
+      }
       setBulkImportSaveProgress(saved)
     }
+
+    // ── PHASE 3: batch every child link for the inserted items in one pass each. ──
+    const subjectLinks = [], cardTypeLinks = [], teamLinks = [], propertyLinks = [], productLineLinks = []
+    for (const c of okItems) {
+      if (c.subjectId) subjectLinks.push({ item_id: c.itemId, subject_id: c.subjectId })
+      for (const ctid of c.cardTypeIds) cardTypeLinks.push({ item_id: c.itemId, card_type_id: ctid })
+      for (const tid of c.teamIds) teamLinks.push({ item_id: c.itemId, team_id: tid })
+      for (const pid of c.propertyIds) propertyLinks.push({ item_id: c.itemId, property_id: pid })
+      for (const plid of c.productLineIds) productLineLinks.push({ item_id: c.itemId, product_line_id: plid })
+    }
+    const batchInsert = async (table, rows) => {
+      for (let i = 0; i < rows.length; i += 500) {
+        const { error } = await supabase.from(table).insert(rows.slice(i, i + 500))
+        if (error) console.error(`${table} bulk insert error:`, error)
+      }
+    }
+    if (subjectLinks.length)     await batchInsert('item_subjects', subjectLinks)
+    if (cardTypeLinks.length)    await batchInsert('item_card_types', cardTypeLinks)
+    if (teamLinks.length)        await batchInsert('item_teams', teamLinks)
+    if (propertyLinks.length)    await batchInsert('item_properties', propertyLinks)
+    if (productLineLinks.length) await batchInsert('item_product_lines', productLineLinks)
+
+    // ── PHASE 4: images. File uploads must go one-by-one (storage), but the
+    //    item_images rows (uploads + direct URLs) are collected and batched. ──
+    const imageRows = []
+    for (const c of okItems) {
+      if (c.imageFile) {
+        const ext = c.imageFile.name.split('.').pop()
+        const path = `items/${c.itemId}/${Date.now()}_0.${ext}`
+        const { error: upErr } = await supabase.storage.from('item-images').upload(path, c.imageFile)
+        if (!upErr) imageRows.push({ item_id: c.itemId, image_path: path, position: 0 })
+      } else if (c.imageUrl?.trim()) {
+        const u = c.imageUrl.trim()
+        if (/\.(jpe?g|png|webp|gif|avif|svg)(\?.*)?$/i.test(u)) imageRows.push({ item_id: c.itemId, image_path: u, position: 0 })
+      }
+    }
+    if (imageRows.length) await batchInsert('item_images', imageRows)
 
     // ── Post-insert linking pass: Includes / Included In ──────────────────────
     // Runs after ALL items exist, so ordering doesn't matter, and handles
