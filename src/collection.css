@@ -265,6 +265,13 @@
 }
 
 /* ═══════════════ NORDVIK Wishlist — premium multi-column cards ═══════════════ */
+/* App.css paints .catalog-card white and loads after collection.css, so darken
+   every card within the wishlist with higher specificity (0,2,0 beats 0,1,0). */
+.nv-wishlist .catalog-card {
+  background: var(--nv-panel, rgba(23, 34, 50, 0.72));
+  border: 1px solid var(--nv-border, rgba(120, 150, 190, 0.16));
+  color: var(--nv-ink, #e8eef7);
+}
 .nv-wish-list { display: flex; flex-direction: column; gap: 12px; }
 .nv-wish-row {
   display: grid;
