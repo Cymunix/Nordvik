@@ -748,7 +748,26 @@ h1 {
   grid-template-columns: repeat(6, 1fr);
   gap: 10px;
   padding: 16px;
-  background: #e85d04;
+  background: var(--nv-bg, #0b111b);
+  border: 1px solid var(--nv-border, rgba(120, 150, 190, 0.16));
+  border-radius: 14px;
+}
+
+/* Item name — readable on both the white "owned" card and the dim "missing" card. */
+.completion-sheet-info {
+  width: 100%;
+  text-align: center;
+}
+.completion-sheet-info strong {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #17233a;
+  word-break: break-word;
+}
+.completion-sheet-item.missing .completion-sheet-info strong {
+  color: rgba(226, 235, 246, 0.92);
 }
 
 .completion-sheet-item {
