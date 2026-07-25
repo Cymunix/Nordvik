@@ -1556,8 +1556,18 @@ export default function CatalogItemPage({ scope }) {
                           'category_id', 'subcategory_id', 'franchise_id', 'brand_id',
                           'collectible_set_id', 'subcollectble_set_id', 'subject_id',
                           'print_type_id', 'rarity_id', 'mtg_card_type_id',
-                          'subset_id', 'series_id', 'name', 'upc', 'catalog_code'
+                          'subset_id', 'series_id', 'name', 'upc', 'catalog_code',
+                          // Rendered as individual per-field rows below, not as a blob.
+                          'dynamic_fields',
                         ])
+                        // Friendlier labels for known dynamic card fields; anything
+                        // else falls back to friendlyLabel().
+                        const dynamicFieldLabels = {
+                          set_id: 'Set ID', card_color: 'Card Colour', card_type: 'Card Type',
+                          variant_type: 'Variant Type', attribute: 'Attribute', card_cost: 'Card Cost',
+                          card_power: 'Card Power', counter_amount: 'Counter Amount', life: 'Life',
+                          sub_types: 'Collection', market_price: 'Market Price',
+                        }
                         const friendlyLabel = (key) => {
                           if (key === 'lego_set_number') return 'ID Number'
                           return key
@@ -1584,9 +1594,24 @@ export default function CatalogItemPage({ scope }) {
                             onClick: null,
                           }))
 
-                        // Keep the readable/resolved fields first, then append every other
-                        // populated field known for the item.
-                        const visibleRows = [...rows, ...extraRows]
+                        // Per-game dynamic fields (Set ID, Card Colour, Life, …). Only the
+                        // fields that actually hold a value for THIS item are stored in
+                        // dynamic_fields, so every subset naturally shows only its own
+                        // populated properties — no empty One Piece stats on a Star Wars card.
+                        const df = catalogRawItemRow?.dynamic_fields
+                        const dynamicRows = (df && typeof df === 'object' && !Array.isArray(df))
+                          ? Object.entries(df)
+                              .filter(([key, value]) => hasValue(value) && !existingLabels.has(dynamicFieldLabels[key] || friendlyLabel(key)))
+                              .map(([key, value]) => ({
+                                label: dynamicFieldLabels[key] || friendlyLabel(key),
+                                value: typeof value === 'object' ? JSON.stringify(value) : value,
+                                onClick: null,
+                              }))
+                          : []
+
+                        // Keep the readable/resolved fields first, then the per-game dynamic
+                        // fields, then every other populated field known for the item.
+                        const visibleRows = [...rows, ...dynamicRows, ...extraRows]
                           .filter(row => hasValue(row.value) || (row.subjects && row.subjects.length > 0))
                         return visibleRows.map(({ label, value, onClick, subjects }) => (
                           <div key={label} className="catalog-detail-info-cell">

@@ -540,15 +540,30 @@ function deriveMinifigShorthand(name) {
 }
 
 const CATALOG_DYNAMIC_FIELD_DEFINITIONS = {
+  // Shared across EVERY Trading Cards subcategory (Star Wars, One Piece, …). The
+  // Subject, ID Number (card_number), Description, Release Year, Rarity and Card
+  // Image columns map through fixed catalogue fields; Variant Group / Has Variants
+  // are intentionally ignored. Everything else on a card export lives here and
+  // persists in the item's dynamic_fields JSONB — no schema change. A subcategory
+  // needing extra/renamed fields can still override via
+  // CATALOG_DYNAMIC_FIELDS_BY_SUBCATEGORY below.
   'Trading Cards': [
-    { key: 'set', label: 'Set', type: 'text' },
-    { key: 'card_number', label: 'Card Number', type: 'text' },
-    { key: 'rarity', label: 'Rarity', type: 'text' },
-    { key: 'first_edition', label: 'First Edition', type: 'boolean' },
-    { key: 'language', label: 'Language', type: 'text' },
-    { key: 'hp', label: 'HP', type: 'number' },
-    { key: 'card_type', label: 'Type', type: 'text' },
-    { key: 'evolution', label: 'Evolution', type: 'text' },
+    { key: 'set_id', label: 'Set ID', type: 'text' },
+    // Variant descriptor (Standard / Parallel / Alternate Art / Manga Rare …).
+    // The base card number stays in items.card_number; cards sharing it within
+    // the same franchise are variants of one group.
+    { key: 'variant_type', label: 'Variant Type', type: 'text' },
+    { key: 'card_color', label: 'Card Colour', type: 'text', aliases: ['card_color', 'colour', 'color'] },
+    // The card's game type (Leader / Character / Event / Stage; Unit / Pilot; …).
+    // Distinct from the NORDVIK taxonomy "Item Type" — a file may carry both.
+    { key: 'card_type', label: 'Card Type', type: 'text' },
+    { key: 'attribute', label: 'Attribute', type: 'text' },
+    { key: 'card_cost', label: 'Card Cost', type: 'number' },
+    { key: 'card_power', label: 'Card Power', type: 'number' },
+    { key: 'counter_amount', label: 'Counter Amount', type: 'number' },
+    { key: 'life', label: 'Life', type: 'number' },
+    { key: 'sub_types', label: 'Collection', type: 'text', aliases: ['sub_types', 'subtypes'] },
+    { key: 'market_price', label: 'Market Price', type: 'number' },
     // Illustrator is handled via the people credits section
   ],
   'Sports Cards': [
@@ -614,24 +629,11 @@ const CATALOG_DYNAMIC_FIELD_DEFINITIONS = {
 // here; they take precedence over the category-level definitions above. All
 // values persist in the item's dynamic_fields JSONB — no schema change.
 const CATALOG_DYNAMIC_FIELDS_BY_SUBCATEGORY = {
-  'One Piece': [
-    { key: 'set_id', label: 'Set ID', type: 'text' },
-    // Variant descriptor (Standard / Parallel / Alternate Art / Manga Rare …).
-    // The base card number stays in items.card_number; cards sharing it within
-    // the same franchise are variants of one group.
-    { key: 'variant_type', label: 'Variant Type', type: 'text' },
-    { key: 'card_color', label: 'Card Colour', type: 'text', aliases: ['card_color', 'colour', 'color'] },
-    // The One Piece card type (Leader / Character / Event / Stage). Distinct from
-    // the NORDVIK taxonomy "Item Type" — a file may carry both columns.
-    { key: 'card_type', label: 'Card Type', type: 'text' },
-    { key: 'attribute', label: 'Attribute', type: 'text' },
-    { key: 'card_cost', label: 'Card Cost', type: 'number' },
-    { key: 'card_power', label: 'Card Power', type: 'number' },
-    { key: 'counter_amount', label: 'Counter Amount', type: 'number' },
-    { key: 'life', label: 'Life', type: 'number' },
-    { key: 'sub_types', label: 'Collection', type: 'text', aliases: ['sub_types', 'subtypes'] },
-    { key: 'market_price', label: 'Market Price', type: 'number' },
-  ],
+  // The shared Trading Cards card fields (Set ID, Card Colour, Life, Card Cost,
+  // Card Power, Counter Amount, Attribute, Collection, …) now live at the category
+  // level in CATALOG_DYNAMIC_FIELD_DEFINITIONS['Trading Cards'] and are inherited by
+  // every subcategory. Add an entry here ONLY for a game that needs extra or
+  // renamed fields beyond that shared set.
 }
 // Source columns that are intentionally NOT imported: variant grouping is
 // DERIVED from the shared base card number (items.card_number), so a duplicate
@@ -3514,7 +3516,30 @@ function App() {
         franchiseIds = [...new Set((fs || []).map(r => r.franchise_id).filter(Boolean))]
       }
       let list = []
-      if (franchiseIds.length) {
+      // When the view is narrowed by Subfranchise / Collectible Set / Subcollectible
+      // Set, only offer the Properties actually present on items in that narrowed set
+      // (e.g. only "Base" under "Pocketmodel TCG", not every Star Wars Property).
+      // Derived from real items via item_properties, so it never wrongly empties the
+      // list the way a direct properties.subset_id filter could. With nothing narrowed,
+      // fall back to every Property in the franchise(s).
+      const isNarrowed = !!(catalogSubthemeId || catalogSetId || catalogSubsetId)
+      if (isNarrowed) {
+        let itemsQ = supabase.from('items').select('item_id')
+        if (franchiseIds.length) itemsQ = itemsQ.in('franchise_id', franchiseIds)
+        if (catalogSubthemeId) itemsQ = itemsQ.eq('subset_id', catalogSubthemeId)
+        if (catalogSetId) itemsQ = itemsQ.eq('collectible_set_id', catalogSetId)
+        if (catalogSubsetId) itemsQ = itemsQ.eq('subcollectble_set_id', catalogSubsetId)
+        const { data: itemRows } = await itemsQ.limit(5000)
+        const itemIds = [...new Set((itemRows || []).map(r => r.item_id))]
+        if (itemIds.length) {
+          const { data: linkRows } = await supabase.from('item_properties').select('property_id').in('item_id', itemIds)
+          const propIds = [...new Set((linkRows || []).map(r => r.property_id).filter(Boolean))]
+          if (propIds.length) {
+            const { data } = await supabase.from('properties').select('property_id, name').in('property_id', propIds).order('name')
+            list = (data || []).map(r => ({ id: r.property_id, name: r.name }))
+          }
+        }
+      } else if (franchiseIds.length) {
         const { data } = await supabase.from('properties').select('property_id, name').in('franchise_id', franchiseIds).order('name')
         list = (data || []).map(r => ({ id: r.property_id, name: r.name }))
       }
@@ -3523,7 +3548,7 @@ function App() {
       setCatalogPropertyId(prev => list.some(p => p.id === prev) ? prev : '')
     })()
     return () => { cancelled = true }
-  }, [currentScreen, selectedCatalogFranchiseRecord?.id, selectedCatalogSubcategoryRecord?.id])
+  }, [currentScreen, selectedCatalogFranchiseRecord?.id, selectedCatalogSubcategoryRecord?.id, catalogSubthemeId, catalogSetId, catalogSubsetId])
 
   // Faceted filter: Series options. When a Theme (franchise) is selected, show only
   // the Series actually used by items in that Theme (series link to items, not
