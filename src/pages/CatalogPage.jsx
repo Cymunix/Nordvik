@@ -128,6 +128,12 @@ export default function CatalogPage({ scope }) {
     catalogRarityId,
     catalogSeriesId,
     catalogSeriesOptions,
+    catalogManufacturerId,
+    catalogManufacturerOptions,
+    catalogPublisherId,
+    catalogPublisherOptions,
+    setCatalogManufacturerId,
+    setCatalogPublisherId,
     catalogSetId,
     catalogSets,
     catalogSidebarLabels,
@@ -333,6 +339,8 @@ export default function CatalogPage({ scope }) {
     setCatalogSubthemeId('')
     setCatalogProductLineId('')
     setCatalogSeriesId('')
+    setCatalogManufacturerId('')
+    setCatalogPublisherId('')
     setCatalogPrintTypeId('')
     setCatalogCardTypeIds([])
     setCatalogSubjectId('')
@@ -354,6 +362,8 @@ export default function CatalogPage({ scope }) {
   if (catalogProductLineId) activeFilterChips.push({ key: 'pl', label: (catalogProductLineOptions.find((o) => o.id === catalogProductLineId)?.name) || 'Product Line', onRemove: () => setCatalogProductLineId('') })
   if (catalogPropertyId) activeFilterChips.push({ key: 'prop', label: (catalogPropertyOptions.find((o) => o.id === catalogPropertyId)?.name) || 'Property', onRemove: () => setCatalogPropertyId('') })
   if (catalogSeriesId) activeFilterChips.push({ key: 'ser', label: (catalogSeriesOptions.find((o) => o.id === catalogSeriesId)?.name) || 'Series', onRemove: () => setCatalogSeriesId('') })
+  if (catalogManufacturerId) activeFilterChips.push({ key: 'mfr', label: (catalogManufacturerOptions.find((o) => o.id === catalogManufacturerId)?.name) || 'Manufacturer', onRemove: () => setCatalogManufacturerId('') })
+  if (catalogPublisherId) activeFilterChips.push({ key: 'pub', label: (catalogPublisherOptions.find((o) => o.id === catalogPublisherId)?.name) || 'Publisher', onRemove: () => setCatalogPublisherId('') })
   if (catalogSubjectSearch) activeFilterChips.push({ key: 'subj', label: catalogSubjectSearch, onRemove: () => { setCatalogSubjectId(''); setCatalogSubjectSearch(''); setCatalogSubjectResults([]) } })
   if (catalogMinYear) activeFilterChips.push({ key: 'miny', label: `From ${catalogMinYear}`, onRemove: () => setCatalogMinYear('') })
   if (catalogMaxYear) activeFilterChips.push({ key: 'maxy', label: `To ${catalogMaxYear}`, onRemove: () => setCatalogMaxYear('') })
@@ -865,6 +875,40 @@ export default function CatalogPage({ scope }) {
                       <option value="">All</option>
                       {catalogSeriesOptions.map((s) => (
                         <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </select>
+                  </>
+                )}
+
+                {/* Manufacturer (universal facet) */}
+                {catalogManufacturerOptions.length > 0 && (
+                  <>
+                    <label htmlFor="catalog-manufacturer">Manufacturer</label>
+                    <select
+                      id="catalog-manufacturer"
+                      value={catalogManufacturerId}
+                      onChange={(event) => setCatalogManufacturerId(event.target.value)}
+                    >
+                      <option value="">All</option>
+                      {catalogManufacturerOptions.map((m) => (
+                        <option key={m.id} value={m.id}>{m.name}</option>
+                      ))}
+                    </select>
+                  </>
+                )}
+
+                {/* Publisher (universal facet) */}
+                {catalogPublisherOptions.length > 0 && (
+                  <>
+                    <label htmlFor="catalog-publisher">Publisher</label>
+                    <select
+                      id="catalog-publisher"
+                      value={catalogPublisherId}
+                      onChange={(event) => setCatalogPublisherId(event.target.value)}
+                    >
+                      <option value="">All</option>
+                      {catalogPublisherOptions.map((p) => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
                       ))}
                     </select>
                   </>

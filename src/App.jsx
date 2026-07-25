@@ -1897,6 +1897,11 @@ function App() {
   const [catalogPropertyOptions, setCatalogPropertyOptions] = useState([])
   const [catalogSeriesId, setCatalogSeriesId] = useState('')
   const [catalogSeriesOptions, setCatalogSeriesOptions] = useState([])
+  // Universal Manufacturer / Publisher facets (category-agnostic).
+  const [catalogManufacturerId, setCatalogManufacturerId] = useState('')
+  const [catalogManufacturerOptions, setCatalogManufacturerOptions] = useState([])
+  const [catalogPublisherId, setCatalogPublisherId] = useState('')
+  const [catalogPublisherOptions, setCatalogPublisherOptions] = useState([])
   const [catalogPrintTypeId, setCatalogPrintTypeId] = useState('')
   const [catalogCardTypeIds, setCatalogCardTypeIds] = useState([])
   const [catalogSubjectId, setCatalogSubjectId] = useState('')
@@ -3591,6 +3596,35 @@ function App() {
     return () => { cancelled = true }
   }, [currentScreen, selectedCatalogSubcategoryRecord?.id, selectedCatalogFranchiseRecord?.id])
 
+  // Faceted filters: Manufacturer / Publisher options. Universal fields, so scope
+  // the options to those actually present on items in the current Category/
+  // Subcategory view (derived from items.manufacturer_id / publisher_id, which the
+  // item_details view does not expose).
+  useEffect(() => {
+    if (currentScreen !== 'catalog') return
+    let cancelled = false
+    ;(async () => {
+      let base = supabase.from('items').select('manufacturer_id, publisher_id')
+      if (selectedCatalogCategoryRecord) base = base.eq('category_id', selectedCatalogCategoryRecord.id)
+      if (selectedCatalogSubcategoryRecord) base = base.eq('subcategory_id', selectedCatalogSubcategoryRecord.id)
+      const { data: rows } = await base.limit(20000)
+      const mfrIds = [...new Set((rows || []).map(r => r.manufacturer_id).filter(Boolean))]
+      const pubIds = [...new Set((rows || []).map(r => r.publisher_id).filter(Boolean))]
+      const [mfrs, pubs] = await Promise.all([
+        mfrIds.length ? supabase.from('manufacturers').select('manufacturer_id, name').in('manufacturer_id', mfrIds).order('name') : Promise.resolve({ data: [] }),
+        pubIds.length ? supabase.from('publishers').select('publisher_id, name').in('publisher_id', pubIds).order('name') : Promise.resolve({ data: [] }),
+      ])
+      if (cancelled) return
+      const mList = (mfrs.data || []).map(r => ({ id: r.manufacturer_id, name: r.name }))
+      const pList = (pubs.data || []).map(r => ({ id: r.publisher_id, name: r.name }))
+      setCatalogManufacturerOptions(mList)
+      setCatalogPublisherOptions(pList)
+      setCatalogManufacturerId(prev => mList.some(m => m.id === prev) ? prev : '')
+      setCatalogPublisherId(prev => pList.some(p => p.id === prev) ? prev : '')
+    })()
+    return () => { cancelled = true }
+  }, [currentScreen, selectedCatalogCategoryRecord?.id, selectedCatalogSubcategoryRecord?.id])
+
   // Effect F: subject typeahead search (category-scoped when a category is selected)
   useEffect(() => {
     if (currentScreen !== 'catalog') return
@@ -3945,6 +3979,15 @@ function App() {
         const { data } = await supabase.from('items').select('item_id').eq('series_id', catalogSeriesId)
         facetIdLists.push((data || []).map(r => r.item_id))
       }
+      // Universal Manufacturer / Publisher facets (items.*_id, not in item_details).
+      if (catalogManufacturerId) {
+        const { data } = await supabase.from('items').select('item_id').eq('manufacturer_id', catalogManufacturerId)
+        facetIdLists.push((data || []).map(r => r.item_id))
+      }
+      if (catalogPublisherId) {
+        const { data } = await supabase.from('items').select('item_id').eq('publisher_id', catalogPublisherId)
+        facetIdLists.push((data || []).map(r => r.item_id))
+      }
       if (facetIdLists.length) {
         let ids = facetIdLists[0]
         for (let i = 1; i < facetIdLists.length; i++) {
@@ -4180,6 +4223,8 @@ function App() {
     catalogProductLineId,
     catalogPropertyId,
     catalogSeriesId,
+    catalogManufacturerId,
+    catalogPublisherId,
     catalogTeamId,
     currentScreen,
     selectedCatalogCategoryRecord,
@@ -4253,6 +4298,7 @@ function App() {
     catalogBrandId, catalogCardTypeIds, catalogCategory, catalogFranchise,
     catalogMaxYear, catalogMinYear, catalogPrintTypeId, catalogRarityId, catalogSetId,
     catalogSortKey, catalogSubcategory, catalogSubjectId, catalogSubsetId,
+    catalogManufacturerId, catalogPublisherId,
     catalogTeamId,
   ])
 
@@ -13877,6 +13923,12 @@ function App() {
     catalogRawItemRow,
     catalogSeriesId,
     catalogSeriesOptions,
+    catalogManufacturerId,
+    catalogManufacturerOptions,
+    catalogPublisherId,
+    catalogPublisherOptions,
+    setCatalogManufacturerId,
+    setCatalogPublisherId,
     catalogSetId,
     catalogSetNavIndex,
     catalogSetNavItems,
