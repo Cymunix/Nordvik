@@ -9314,6 +9314,7 @@ function App() {
     setBulkImportSaveError('')
     setBulkImportSaveProgress(0)
     let saved = 0
+    try {
     const isLegoCategory = selectedCatalogAdminCategoryName === 'Building Blocks'
     const bricklinkItemCache = new Map() // bricklink_id → item_id for items created this batch
     // Every item touched this batch (created or matched-existing) + its row, so the
@@ -9534,6 +9535,7 @@ function App() {
         : `${Date.now()}-${Math.random().toString(16).slice(2)}-${Math.random().toString(16).slice(2)}`
     const subjectIdCache = new Map()        // subject_name_lc → subject_id (avoids re-lookup/create)
     const subjectFranchiseDone = new Set()  // `${subjectId}::${franchiseId}` already linked
+    const subjectFranchisePairs = []        // batched after the loop instead of per-row upserts
     const resolveSubjectId = async (row, rowFranchiseId) => {
       let subjectId = row.subjectObj?.id || null
       const trimmedName = row.subject_name?.trim()
@@ -9557,8 +9559,9 @@ function App() {
       if (subjectId && rowFranchiseId) {
         const fk = `${subjectId}::${rowFranchiseId}`
         if (!subjectFranchiseDone.has(fk)) {
-          await supabase.from('subject_franchise').upsert(
-            { subject_id: subjectId, franchise_id: rowFranchiseId }, { onConflict: 'subject_id,franchise_id' })
+          // Collected here and upserted in one batched pass after the loop, instead
+          // of a network round-trip per row.
+          subjectFranchisePairs.push({ subject_id: subjectId, franchise_id: rowFranchiseId })
           subjectFranchiseDone.add(fk)
         }
       }
@@ -9567,6 +9570,35 @@ function App() {
       }
       return subjectId
     }
+    // Bulk pre-resolve subjects: one chunked lookup + one bulk insert for the whole
+    // batch, instead of ~2 sequential round-trips per distinct card name (the single
+    // biggest cost on a large import — e.g. ~900 card names = ~1800 requests). The
+    // per-row resolveSubjectId below then hits subjectIdCache. Lookup is
+    // case-sensitive (.in) for speed; a subject that exists only under different
+    // casing simply falls through to resolveSubjectId's ilike fallback.
+    {
+      const wanted = new Map() // nameLc → { name, type }
+      for (const row of toSave) {
+        if (row.subjectObj?.id) continue
+        const nm = row.subject_name?.trim()
+        if (nm && !wanted.has(nm.toLowerCase())) wanted.set(nm.toLowerCase(), { name: nm, type: getBulkSubjectType(row) })
+      }
+      const names = [...wanted.values()].map(v => v.name)
+      for (let i = 0; i < names.length; i += 200) {
+        const { data: found } = await supabase.from('subjects')
+          .select('subject_id, subject_name').in('subject_name', names.slice(i, i + 200))
+        for (const s of (found || [])) subjectIdCache.set(s.subject_name.trim().toLowerCase(), s.subject_id)
+      }
+      const toCreate = [...wanted.entries()]
+        .filter(([lc]) => !subjectIdCache.has(lc))
+        .map(([, v]) => ({ subject_name: v.name, subject_type: v.type }))
+      for (let i = 0; i < toCreate.length; i += 200) {
+        const { data: created, error } = await supabase.from('subjects')
+          .insert(toCreate.slice(i, i + 200)).select('subject_id, subject_name')
+        if (!error && created) for (const s of created) subjectIdCache.set(s.subject_name.trim().toLowerCase(), s.subject_id)
+      }
+    }
+
     const pending = []  // { payload, row, itemId, subjectId, cardTypeIds, teamIds, propertyIds, productLineIds, imageFile, imageUrl }
 
     for (const row of toSave) {
@@ -9761,6 +9793,12 @@ function App() {
         if (error) console.error(`${table} bulk insert error:`, error)
       }
     }
+    // Subject↔franchise links collected during Phase 1, upserted in bulk.
+    for (let i = 0; i < subjectFranchisePairs.length; i += 500) {
+      const { error } = await supabase.from('subject_franchise')
+        .upsert(subjectFranchisePairs.slice(i, i + 500), { onConflict: 'subject_id,franchise_id' })
+      if (error) console.error('subject_franchise bulk upsert error:', error)
+    }
     if (subjectLinks.length)     await batchInsert('item_subjects', subjectLinks)
     if (cardTypeLinks.length)    await batchInsert('item_card_types', cardTypeLinks)
     if (teamLinks.length)        await batchInsert('item_teams', teamLinks)
@@ -9845,7 +9883,17 @@ function App() {
       }
     }
 
-    setBulkImportIsSaving(false)
+    } catch (err) {
+      // Without this, a single thrown await (network blip, timeout, RLS reject,
+      // an unexpected null in a resolve helper) left the button stuck on "Saving"
+      // forever with no feedback. Surface what failed and how far we got; the
+      // already-inserted rows are marked saved/skipped and are safe to keep — a
+      // re-run skips them via the existing dedupe checks.
+      console.error('[bulk save] failed', err)
+      setBulkImportSaveError(`Save stopped after ${saved} of ${toSave.length} item(s): ${err?.message || err}. Already-saved rows are kept — press Save again to resume the rest.`)
+    } finally {
+      setBulkImportIsSaving(false)
+    }
   }
 
   const updateBulkPhotoRow = (idx, updates) =>
