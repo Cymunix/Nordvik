@@ -3919,34 +3919,37 @@ function App() {
       if (catalogSubsetId) {
         itemsQuery = itemsQuery.eq('subcollectble_set_id', catalogSubsetId)
       }
-      // Faceted: Subtheme (items.subset_id) — not exposed by item_details, so
-      // pre-query matching item_ids and constrain the main query.
+      // Faceted filters not exposed by item_details (Subtheme, Product Line,
+      // Property, Series) are pre-queried to item_id lists. These are INTERSECTED in
+      // JS and applied as a SINGLE .in(...) — stacking multiple large .in('item_id')
+      // calls put hundreds of UUIDs in the URL and overflowed the length limit
+      // (400 Bad Request, e.g. Pocketmodel's 546 ids + a Property's ids).
+      const facetIdLists = []
       if (catalogSubthemeId) {
-        const { data: subRows } = await supabase.from('items').select('item_id').eq('subset_id', catalogSubthemeId)
-        const subIds = (subRows || []).map(r => r.item_id)
-        if (!subIds.length) { setCatalogItems([]); setCatalogTotalItemCount(0); setIsCatalogLoading(false); return }
-        itemsQuery = itemsQuery.in('item_id', subIds)
+        const { data } = await supabase.from('items').select('item_id').eq('subset_id', catalogSubthemeId)
+        facetIdLists.push((data || []).map(r => r.item_id))
       }
-      // Faceted: Product Line (item_product_lines m2m).
       if (catalogProductLineId) {
-        const { data: plRows } = await supabase.from('item_product_lines').select('item_id').eq('product_line_id', catalogProductLineId)
-        const plIds = (plRows || []).map(r => r.item_id)
-        if (!plIds.length) { setCatalogItems([]); setCatalogTotalItemCount(0); setIsCatalogLoading(false); return }
-        itemsQuery = itemsQuery.in('item_id', plIds)
+        const { data } = await supabase.from('item_product_lines').select('item_id').eq('product_line_id', catalogProductLineId)
+        facetIdLists.push((data || []).map(r => r.item_id))
       }
-      // Faceted: Property (item_properties m2m) — the IP sub-level / set.
       if (catalogPropertyId) {
-        const { data: prRows } = await supabase.from('item_properties').select('item_id').eq('property_id', catalogPropertyId)
-        const prIds = (prRows || []).map(r => r.item_id)
-        if (!prIds.length) { setCatalogItems([]); setCatalogTotalItemCount(0); setIsCatalogLoading(false); return }
-        itemsQuery = itemsQuery.in('item_id', prIds)
+        const { data } = await supabase.from('item_properties').select('item_id').eq('property_id', catalogPropertyId)
+        facetIdLists.push((data || []).map(r => r.item_id))
       }
-      // Series facet (items.series_id) — not exposed by item_details, pre-query.
       if (catalogSeriesId) {
-        const { data: seRows } = await supabase.from('items').select('item_id').eq('series_id', catalogSeriesId)
-        const seIds = (seRows || []).map(r => r.item_id)
-        if (!seIds.length) { setCatalogItems([]); setCatalogTotalItemCount(0); setIsCatalogLoading(false); return }
-        itemsQuery = itemsQuery.in('item_id', seIds)
+        const { data } = await supabase.from('items').select('item_id').eq('series_id', catalogSeriesId)
+        facetIdLists.push((data || []).map(r => r.item_id))
+      }
+      if (facetIdLists.length) {
+        let ids = facetIdLists[0]
+        for (let i = 1; i < facetIdLists.length; i++) {
+          const s = new Set(facetIdLists[i])
+          ids = ids.filter(x => s.has(x))
+        }
+        ids = [...new Set(ids)]
+        if (!ids.length) { setCatalogItems([]); setCatalogTotalItemCount(0); setIsCatalogLoading(false); return }
+        itemsQuery = itemsQuery.in('item_id', ids)
       }
       if (catalogPrintTypeId === '__none__') {
         itemsQuery = itemsQuery.is('print_type_id', null)
