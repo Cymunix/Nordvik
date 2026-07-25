@@ -228,9 +228,13 @@ const BULK_FIELD_MAP = {
   subfranchise:    { aliases: ['subfranchise', 'subfranchises', 'subtheme', 'sub_theme', 'subset', 'subset_name'], band: 'taxonomy', label: 'Subfranchise' },
   property:        { aliases: ['property', 'properties', 'set_name'], band: 'taxonomy', label: 'Property' },
   product_line:    { aliases: ['product_line', 'product_lines', 'productline'], band: 'taxonomy', label: 'Product Line' },
-  manufacturer:    { aliases: ['manufacturer', 'brand/manufacturer', 'brand_manufacturer', 'brandmanufacturer', 'maker'], band: 'taxonomy', label: 'Brand/Manufacturer' },
   item_type:       { aliases: ['item_type', 'item_types', 'itemtype', 'brand', 'brand_name', 'card_type'], band: 'taxonomy', label: 'Item Type' },
   series:          { aliases: ['series', 'series_name'], band: 'taxonomy', label: 'Series' },
+  // Universal, category-agnostic relations (NOT the Subcategory — which used to be
+  // labelled "Brand/Manufacturer"). Manufacturer = who produced the item; Publisher
+  // = who published/released it. Stored in items.manufacturer_id / publisher_id.
+  manufacturer:    { aliases: ['manufacturer', 'manufacturer_name', 'maker', 'made_by', 'producer'], band: 'universal', label: 'Manufacturer' },
+  publisher:       { aliases: ['publisher', 'publisher_name', 'publishing_company', 'published_by', 'publishing'], band: 'universal', label: 'Publisher' },
   item_name:       { aliases: ['item', 'items', 'item_name', 'title'], band: 'taxonomy', label: 'Item' },
   // ── Universal metadata ──
   subject:         { aliases: ['subject', 'subjects', 'subject_name', 'card_name', 'character', 'minifig_name', 'fig_name'], band: 'universal', label: 'Subject(s)' },
@@ -8988,7 +8992,9 @@ function App() {
         subtheme_name: gv('subfranchise'),
         property_names: gv('property'),
         product_line_names: gv('product_line'),
+        subcategory_name: gv('subcategory'),
         manufacturer_name: gv('manufacturer'),
+        publisher_name: gv('publisher'),
         series_name: gv('series'),
         subset_id: '',
         product_line_ids: [],
@@ -9517,6 +9523,35 @@ function App() {
       if (id) productLineIdCache.set(key, id)
       return id
     }
+    // Universal Manufacturer / Publisher — category-agnostic get-or-create by name.
+    const manufacturerIdCache = new Map()
+    const resolveOrCreateManufacturer = async (name) => {
+      if (!name?.trim()) return null
+      const key = name.trim().toLowerCase()
+      if (manufacturerIdCache.has(key)) return manufacturerIdCache.get(key)
+      const { data: found } = await supabase.from('manufacturers').select('manufacturer_id').ilike('name', name.trim()).limit(1).maybeSingle()
+      let id = found?.manufacturer_id || null
+      if (!id) {
+        const { data: created } = await supabase.from('manufacturers').insert({ name: name.trim() }).select('manufacturer_id').single()
+        id = created?.manufacturer_id || null
+      }
+      if (id) manufacturerIdCache.set(key, id)
+      return id
+    }
+    const publisherIdCache = new Map()
+    const resolveOrCreatePublisher = async (name) => {
+      if (!name?.trim()) return null
+      const key = name.trim().toLowerCase()
+      if (publisherIdCache.has(key)) return publisherIdCache.get(key)
+      const { data: found } = await supabase.from('publishers').select('publisher_id').ilike('name', name.trim()).limit(1).maybeSingle()
+      let id = found?.publisher_id || null
+      if (!id) {
+        const { data: created } = await supabase.from('publishers').insert({ name: name.trim() }).select('publisher_id').single()
+        id = created?.publisher_id || null
+      }
+      if (id) publisherIdCache.set(key, id)
+      return id
+    }
     // Series (facet) — scoped to the Subcategory (manufacturer/publisher).
     const seriesIdCache = new Map()
     const resolveOrCreateSeries = async (name, subcategoryId) => {
@@ -9616,10 +9651,15 @@ function App() {
       let rowBrandId         = null
       let rowCollectibleSetId = null
       let rowSubsetId        = null
-      // Brand/Manufacturer (per-row) → Subcategory; falls back to the UI selection.
-      const rowSubcategoryId = row.manufacturer_name?.trim()
-        ? (await resolveOrCreateSubcategory(row.manufacturer_name, catalogAdminCategoryId)) || catalogAdminSubcategoryId
+      // Subcategory (per-row) from the "Subcategory" column; falls back to the UI
+      // selection. Manufacturer is now its OWN universal field (below), no longer
+      // conflated with the Subcategory.
+      const rowSubcategoryId = row.subcategory_name?.trim()
+        ? (await resolveOrCreateSubcategory(row.subcategory_name, catalogAdminCategoryId)) || catalogAdminSubcategoryId
         : catalogAdminSubcategoryId
+      // Universal Manufacturer / Publisher relations.
+      const rowManufacturerId = row.manufacturer_name?.trim() ? await resolveOrCreateManufacturer(row.manufacturer_name) : null
+      const rowPublisherId    = row.publisher_name?.trim()    ? await resolveOrCreatePublisher(row.publisher_name)      : null
       if (row.franchise_name?.trim()) rowFranchiseId = await resolveOrCreateFranchise(row.franchise_name, rowSubcategoryId)
       // Trading/Sports Cards: the Subcategory IS the franchise. Ensure a franchise of
       // the same name as the subcategory exists and use it, so franchise-keyed facets
@@ -9742,6 +9782,8 @@ function App() {
           // keyed facets work, rather than leaving it null.
           franchise_id:         rowFranchiseId || null,
           brand_id:             rowBrandId                    || null,
+          manufacturer_id:      rowManufacturerId             || null,
+          publisher_id:         rowPublisherId                || null,
           collectible_set_id:   rowCollectibleSetId           || null,
           subcollectble_set_id: row.subcollectble_set_id       || null,
           subset_id:            rowSubsetId                    || null,
