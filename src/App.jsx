@@ -3524,22 +3524,28 @@ function App() {
       // fall back to every Property in the franchise(s).
       const isNarrowed = !!(catalogSubthemeId || catalogSetId || catalogSubsetId)
       if (isNarrowed) {
+        // Scope ONLY by the chosen subset/set — NOT by franchise_id. Trading Cards
+        // items carry franchise_id = null (the Subcategory is the franchise), so an
+        // .in('franchise_id', …) here matches zero rows and wrongly empties Property.
         let itemsQ = supabase.from('items').select('item_id')
-        if (franchiseIds.length) itemsQ = itemsQ.in('franchise_id', franchiseIds)
         if (catalogSubthemeId) itemsQ = itemsQ.eq('subset_id', catalogSubthemeId)
         if (catalogSetId) itemsQ = itemsQ.eq('collectible_set_id', catalogSetId)
         if (catalogSubsetId) itemsQ = itemsQ.eq('subcollectble_set_id', catalogSubsetId)
-        const { data: itemRows } = await itemsQ.limit(5000)
+        const { data: itemRows } = await itemsQ.limit(10000)
         const itemIds = [...new Set((itemRows || []).map(r => r.item_id))]
-        if (itemIds.length) {
-          const { data: linkRows } = await supabase.from('item_properties').select('property_id').in('item_id', itemIds)
-          const propIds = [...new Set((linkRows || []).map(r => r.property_id).filter(Boolean))]
-          if (propIds.length) {
-            const { data } = await supabase.from('properties').select('property_id, name').in('property_id', propIds).order('name')
-            list = (data || []).map(r => ({ id: r.property_id, name: r.name }))
-          }
+        const propIds = new Set()
+        for (let i = 0; i < itemIds.length; i += 500) {
+          const { data: linkRows } = await supabase.from('item_properties').select('property_id').in('item_id', itemIds.slice(i, i + 500))
+          for (const r of (linkRows || [])) if (r.property_id) propIds.add(r.property_id)
         }
-      } else if (franchiseIds.length) {
+        if (propIds.size) {
+          const { data } = await supabase.from('properties').select('property_id, name').in('property_id', [...propIds]).order('name')
+          list = (data || []).map(r => ({ id: r.property_id, name: r.name }))
+        }
+      }
+      // Fallback (also covers "nothing narrowed"): if the item-derived scope produced
+      // nothing, list every Property in the franchise(s) so the filter never vanishes.
+      if (!list.length && franchiseIds.length) {
         const { data } = await supabase.from('properties').select('property_id, name').in('franchise_id', franchiseIds).order('name')
         list = (data || []).map(r => ({ id: r.property_id, name: r.name }))
       }
@@ -9612,6 +9618,16 @@ function App() {
         ? (await resolveOrCreateSubcategory(row.manufacturer_name, catalogAdminCategoryId)) || catalogAdminSubcategoryId
         : catalogAdminSubcategoryId
       if (row.franchise_name?.trim()) rowFranchiseId = await resolveOrCreateFranchise(row.franchise_name, rowSubcategoryId)
+      // Trading/Sports Cards: the Subcategory IS the franchise. Ensure a franchise of
+      // the same name as the subcategory exists and use it, so franchise-keyed facets
+      // (Property, Subfranchise) resolve and items are filterable. (Previously the
+      // item's franchise_id was left null, orphaning those facets.)
+      const isCardCat = selectedCatalogAdminCategoryName === 'Trading Cards' || selectedCatalogAdminCategoryName === 'Sports Cards'
+      if (isCardCat) {
+        const subName = (catalogAdminSubcategories.find(s => s.id === rowSubcategoryId)?.name)
+          || selectedCatalogAdminSubcategoryObj?.name || ''
+        if (subName) rowFranchiseId = await resolveOrCreateFranchise(subName, rowSubcategoryId)
+      }
       if (row.brand_name?.trim() && rowFranchiseId) rowBrandId = await resolveOrCreateBrand(row.brand_name, rowFranchiseId)
       // Minifigs don't have packaging — skip resolving a collectible_set for them.
       const rowBlIdForPkg = row.bricklink_id?.trim() || ''
@@ -9718,8 +9734,10 @@ function App() {
           name:                 row.item_name?.trim()         || null,
           category_id:          catalogAdminCategoryId        || null,
           subcategory_id:       rowSubcategoryId              || null,
-          // Trading Cards: Subcategory IS the franchise — never a separate franchise.
-          franchise_id:         selectedCatalogAdminCategoryName === 'Trading Cards' ? null : (rowFranchiseId || null),
+          // Trading Cards: Subcategory IS the franchise — but we now STORE that
+          // franchise (resolved above to match the subcategory name) so franchise-
+          // keyed facets work, rather than leaving it null.
+          franchise_id:         rowFranchiseId || null,
           brand_id:             rowBrandId                    || null,
           collectible_set_id:   rowCollectibleSetId           || null,
           subcollectble_set_id: row.subcollectble_set_id       || null,
