@@ -13645,10 +13645,20 @@ function App() {
     ;(async () => {
       const { data, error } = await supabase
         .from('items')
-        .select('item_id, category_id, subcategory_id, franchise_id, brand_id, collectible_set_id, subcollectble_set_id, subject_id, description, print_type_id, card_number, print_count, image_path, catalog_code, piece_count, release_year, attributes, upc, bricklink_id, rebrickable_fig_id, rarity_id, mtg_card_type_id, market_price, minifig_code, lego_set_number, retail_price, subset_id, series_id, name')
+        .select('item_id, category_id, subcategory_id, franchise_id, brand_id, manufacturer_id, publisher_id, collectible_set_id, subcollectble_set_id, subject_id, description, print_type_id, card_number, print_count, image_path, catalog_code, piece_count, release_year, attributes, dynamic_fields, upc, bricklink_id, rebrickable_fig_id, rarity_id, mtg_card_type_id, market_price, minifig_code, lego_set_number, retail_price, subset_id, series_id, name')
         .eq('item_id', itemId)
         .maybeSingle()
-      if (!cancelled) setCatalogRawItemRow(error ? null : data)
+      // Resolve the universal Manufacturer / Publisher names for display (these are
+      // not part of the item_details view). Attached to the raw row as *_name.
+      let row = error ? null : data
+      if (row) {
+        const [mfr, pub] = await Promise.all([
+          row.manufacturer_id ? supabase.from('manufacturers').select('name').eq('manufacturer_id', row.manufacturer_id).maybeSingle() : Promise.resolve({ data: null }),
+          row.publisher_id ? supabase.from('publishers').select('name').eq('publisher_id', row.publisher_id).maybeSingle() : Promise.resolve({ data: null }),
+        ])
+        row = { ...row, manufacturer_name: mfr?.data?.name || '', publisher_name: pub?.data?.name || '' }
+      }
+      if (!cancelled) setCatalogRawItemRow(row)
     })()
     return () => { cancelled = true }
   }, [selectedCatalogItem?.item_id, selectedCatalogItem?.id])

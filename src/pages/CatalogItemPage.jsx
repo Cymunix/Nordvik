@@ -1495,6 +1495,9 @@ export default function CatalogItemPage({ scope }) {
                           { label: 'Subcategory',   value: d.subcategory,         onClick: d.subcategory ? () => goTo(() => { setCatalogCategory(d.category || 'all'); setCatalogSubcategory(d.subcategory) }) : null },
                           { label: 'Franchise',     value: d.franchise,           onClick: d.franchise ? () => goTo(() => { setCatalogCategory(d.category || 'all'); setCatalogSubcategory(d.subcategory || ''); setCatalogFranchise(d.franchise_id || d.franchise || 'all') }) : null },
                           { label: 'Brand',         value: d.brand,               onClick: d.brand_id ? () => goTo(() => { setCatalogCategory(d.category || 'all'); setCatalogSubcategory(d.subcategory || ''); setCatalogFranchise(d.franchise_id || d.franchise || 'all'); setCatalogBrandId(d.brand_id) }) : null },
+                          // Universal Manufacturer / Publisher (from the raw item row; not in _details).
+                          { label: 'Manufacturer',  value: catalogRawItemRow?.manufacturer_name || '', onClick: null },
+                          { label: 'Publisher',     value: catalogRawItemRow?.publisher_name || '',    onClick: null },
                           { label: 'Collectible Set', value: d.collectible_set,   onClick: d.collectible_set_id ? () => goTo(() => { setCatalogCategory(d.category || 'all'); setCatalogSubcategory(d.subcategory || ''); setCatalogFranchise(d.franchise_id || d.franchise || 'all'); setCatalogBrandId(d.brand_id || ''); setCatalogSetId(d.collectible_set_id) }) : null },
                           { label: 'Release Year',  value: d.release_year ?? 'N/A', onClick: d.release_year ? () => goTo(() => { setCatalogMinYear(String(d.release_year)); setCatalogMaxYear(String(d.release_year)) }) : null },
                           { label: 'Subset',        value: d.subcollectible_set,  onClick: d.subcollectble_set_id ? () => goTo(() => { setCatalogCategory(d.category || 'all'); setCatalogSubcategory(d.subcategory || ''); setCatalogFranchise(d.franchise_id || d.franchise || 'all'); setCatalogBrandId(d.brand_id || ''); setCatalogSetId(d.collectible_set_id || ''); setCatalogSubsetId(d.subcollectble_set_id) }) : null },
@@ -1559,6 +1562,9 @@ export default function CatalogItemPage({ scope }) {
                           'subset_id', 'series_id', 'name', 'upc', 'catalog_code',
                           // Rendered as individual per-field rows below, not as a blob.
                           'dynamic_fields',
+                          // Manufacturer/Publisher are rendered as curated rows above
+                          // (by name); keep the raw ids and resolved names out of the blob.
+                          'manufacturer_id', 'publisher_id', 'manufacturer_name', 'publisher_name',
                         ])
                         // Friendlier labels for known dynamic card fields; anything
                         // else falls back to friendlyLabel().
