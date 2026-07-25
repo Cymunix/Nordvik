@@ -2192,6 +2192,13 @@ function App() {
   // Series (facet) — branded manufacturer/publisher grouping, scoped to Subcategory.
   const [catalogAdminSeriesId, setCatalogAdminSeriesId] = useState('')
   const [catalogAdminSeriesList, setCatalogAdminSeriesList] = useState([])
+  // Universal Manufacturer / Publisher (admin editor — add & edit).
+  const [catalogAdminManufacturerId, setCatalogAdminManufacturerId] = useState('')
+  const [catalogAdminManufacturerList, setCatalogAdminManufacturerList] = useState([])
+  const [catalogAdminManufacturerNew, setCatalogAdminManufacturerNew] = useState('')
+  const [catalogAdminPublisherId, setCatalogAdminPublisherId] = useState('')
+  const [catalogAdminPublisherList, setCatalogAdminPublisherList] = useState([])
+  const [catalogAdminPublisherNew, setCatalogAdminPublisherNew] = useState('')
   const [catalogAdminDynamicFields, setCatalogAdminDynamicFields] = useState({})
   const [catalogAdminVariants, setCatalogAdminVariants] = useState([buildCatalogVariantRow()])
   const [catalogAdminFrontImageFile, setCatalogAdminFrontImageFile] = useState(null)
@@ -4867,6 +4874,40 @@ function App() {
   }, [currentScreen, isPlatformAdmin, catalogAdminSubcategoryId])
   // Clear a stale Series pick when the Subcategory changes.
   useEffect(() => { setCatalogAdminSeriesId('') }, [catalogAdminSubcategoryId])
+
+  // Universal Manufacturer / Publisher lists for the admin editor (not scoped).
+  useEffect(() => {
+    if (currentScreen !== 'catalog' || !isPlatformAdmin) { setCatalogAdminManufacturerList([]); setCatalogAdminPublisherList([]); return }
+    supabase.from('manufacturers').select('manufacturer_id, name').order('name')
+      .then(({ data, error }) => setCatalogAdminManufacturerList(error ? [] : (data || []).map(r => ({ id: r.manufacturer_id, name: r.name }))))
+    supabase.from('publishers').select('publisher_id, name').order('name')
+      .then(({ data, error }) => setCatalogAdminPublisherList(error ? [] : (data || []).map(r => ({ id: r.publisher_id, name: r.name }))))
+  }, [currentScreen, isPlatformAdmin])
+  // Create-or-select helpers for the admin editor.
+  const createCatalogAdminManufacturer = async () => {
+    const name = catalogAdminManufacturerNew.trim()
+    if (!name) return
+    const existing = catalogAdminManufacturerList.find(m => m.name.toLowerCase() === name.toLowerCase())
+    if (existing) { setCatalogAdminManufacturerId(existing.id); setCatalogAdminManufacturerNew(''); return }
+    const { data, error } = await supabase.from('manufacturers').insert({ name }).select('manufacturer_id, name').single()
+    if (error || !data) return
+    const item = { id: data.manufacturer_id, name: data.name }
+    setCatalogAdminManufacturerList(prev => [...prev, item].sort((a, b) => a.name.localeCompare(b.name)))
+    setCatalogAdminManufacturerId(item.id)
+    setCatalogAdminManufacturerNew('')
+  }
+  const createCatalogAdminPublisher = async () => {
+    const name = catalogAdminPublisherNew.trim()
+    if (!name) return
+    const existing = catalogAdminPublisherList.find(p => p.name.toLowerCase() === name.toLowerCase())
+    if (existing) { setCatalogAdminPublisherId(existing.id); setCatalogAdminPublisherNew(''); return }
+    const { data, error } = await supabase.from('publishers').insert({ name }).select('publisher_id, name').single()
+    if (error || !data) return
+    const item = { id: data.publisher_id, name: data.name }
+    setCatalogAdminPublisherList(prev => [...prev, item].sort((a, b) => a.name.localeCompare(b.name)))
+    setCatalogAdminPublisherId(item.id)
+    setCatalogAdminPublisherNew('')
+  }
 
   useEffect(() => {
     if (currentScreen !== 'catalog' || !isPlatformAdmin) {
@@ -8352,7 +8393,7 @@ function App() {
       supabase.from('item_teams').select('team_id').eq('item_id', selectedCatalogItem.id),
       supabase.from('item_card_types').select('card_type_id').eq('item_id', selectedCatalogItem.id),
       supabase.from('item_subjects').select('subject_id, subjects(subject_name, subject_type)').eq('item_id', selectedCatalogItem.id),
-      supabase.from('items').select('rarity_id, mtg_card_type_id, retail_price, market_price, subset_id, series_id').eq('item_id', selectedCatalogItem.id).maybeSingle(),
+      supabase.from('items').select('rarity_id, mtg_card_type_id, retail_price, market_price, subset_id, series_id, manufacturer_id, publisher_id').eq('item_id', selectedCatalogItem.id).maybeSingle(),
       franchiseId
         ? supabase.from('teams').select('team_id, name').eq('franchise_id', franchiseId).order('name')
         : Promise.resolve({ data: [] }),
@@ -8374,6 +8415,8 @@ function App() {
       market_price: itemMtgMeta?.market_price ?? '',
       subset_id: itemMtgMeta?.subset_id || '',
       series_id: itemMtgMeta?.series_id || '',
+      manufacturer_id: itemMtgMeta?.manufacturer_id || '',
+      publisher_id: itemMtgMeta?.publisher_id || '',
       product_line_id: itemProductLines?.[0]?.product_line_id || '',
     }))
     setCatalogItemEditSubjectIds((itemSubjects || []).map(r => ({ id: r.subject_id, name: r.subjects?.subject_name || '', type: r.subjects?.subject_type || '' })))
@@ -8402,6 +8445,8 @@ function App() {
         subcollectble_set_id: v.subcollectble_set_id  || null,
         subset_id:            v.subset_id             || null,
         series_id:            v.series_id             || null,
+        manufacturer_id:      v.manufacturer_id       || null,
+        publisher_id:         v.publisher_id          || null,
         print_type_id:        v.print_type_id         || null,
         bricklink_id:         v.bricklink_id?.trim()         || null,
         rebrickable_fig_id:   v.rebrickable_fig_id?.trim()   || null,
@@ -10250,6 +10295,8 @@ function App() {
         collectible_set_id:   catalogAdminFranchiseId             || null,
         subcollectble_set_id: catalogAdminSubsetId                || null,
         series_id:            catalogAdminSeriesId                || null,
+        manufacturer_id:      catalogAdminManufacturerId          || null,
+        publisher_id:         catalogAdminPublisherId             || null,
         subject_id:           null,
         description:          catalogAdminItemDescription.trim()  || null,
         bricklink_id:         catalogAdminBricklinkId.trim()      || null,
@@ -13829,6 +13876,18 @@ function App() {
     catalogAdminRetailPrice,
     catalogAdminSeriesId,
     catalogAdminSeriesList,
+    catalogAdminManufacturerId,
+    catalogAdminManufacturerList,
+    catalogAdminManufacturerNew,
+    catalogAdminPublisherId,
+    catalogAdminPublisherList,
+    catalogAdminPublisherNew,
+    setCatalogAdminManufacturerId,
+    setCatalogAdminManufacturerNew,
+    setCatalogAdminPublisherId,
+    setCatalogAdminPublisherNew,
+    createCatalogAdminManufacturer,
+    createCatalogAdminPublisher,
     catalogAdminSpecies,
     catalogAdminSubcategories,
     catalogAdminSubcategoryId,

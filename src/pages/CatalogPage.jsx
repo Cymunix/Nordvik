@@ -75,6 +75,18 @@ export default function CatalogPage({ scope }) {
     catalogAdminRetailPrice,
     catalogAdminSeriesId,
     catalogAdminSeriesList,
+    catalogAdminManufacturerId,
+    catalogAdminManufacturerList,
+    catalogAdminManufacturerNew,
+    catalogAdminPublisherId,
+    catalogAdminPublisherList,
+    catalogAdminPublisherNew,
+    setCatalogAdminManufacturerId,
+    setCatalogAdminManufacturerNew,
+    setCatalogAdminPublisherId,
+    setCatalogAdminPublisherNew,
+    createCatalogAdminManufacturer,
+    createCatalogAdminPublisher,
     catalogAdminSpecies,
     catalogAdminSubcategories,
     catalogAdminSubcategoryId,
@@ -2017,6 +2029,8 @@ export default function CatalogPage({ scope }) {
                                           <div className="bulk-import-editor-field"><label>Brand/Manufacturer</label><input type="text" value={cur.manufacturer_name || ''} onChange={e => updateBulkRow(bulkImportIdx, { manufacturer_name: e.target.value })} placeholder="e.g. Jazwares" /></div>
                                           <div className="bulk-import-editor-field"><label>Item Type</label><input type="text" value={cur.brand_name || ''} onChange={e => updateBulkRow(bulkImportIdx, { brand_name: e.target.value })} placeholder="e.g. Vehicle" /></div>
                                           <div className="bulk-import-editor-field"><label>Series</label><input type="text" value={cur.series_name || ''} onChange={e => updateBulkRow(bulkImportIdx, { series_name: e.target.value })} placeholder="e.g. Series 1" /></div>
+                                          <div className="bulk-import-editor-field"><label>Manufacturer</label><input type="text" value={cur.manufacturer_name || ''} onChange={e => updateBulkRow(bulkImportIdx, { manufacturer_name: e.target.value })} placeholder="e.g. Bandai" /></div>
+                                          <div className="bulk-import-editor-field"><label>Publisher</label><input type="text" value={cur.publisher_name || ''} onChange={e => updateBulkRow(bulkImportIdx, { publisher_name: e.target.value })} placeholder="e.g. Topps" /></div>
                                           <div className="bulk-import-editor-field"><label>ID Number</label><input type="text" value={cur.lego_set_number || ''} onChange={e => updateBulkRow(bulkImportIdx, { lego_set_number: e.target.value })} placeholder="Manufacturer / catalogue #" /></div>
                                           <div className="bulk-import-editor-field"><label>Piece Count</label><input type="number" min="1" value={cur.piece_count || ''} onChange={e => updateBulkRow(bulkImportIdx, { piece_count: e.target.value })} /></div>
                                           <div className="bulk-import-editor-field"><label>Retail Price</label><input type="number" step="0.01" min="0" value={cur.retail_price || ''} onChange={e => updateBulkRow(bulkImportIdx, { retail_price: e.target.value })} /></div>
@@ -2534,6 +2548,30 @@ export default function CatalogPage({ scope }) {
                               {catalogAdminInlineCreate.error && <span className="catalog-admin-inline-error">{catalogAdminInlineCreate.error}</span>}
                             </div>
                           ) : <button type="button" className="catalog-admin-inline-toggle" onClick={() => setCatalogAdminInlineCreate({ field: 'series', value: '', subjectType: 'player' })}>+ New Series</button>)}
+                      </div>
+                      {/* Manufacturer (universal) — who produced the item */}
+                      <div>
+                        <label htmlFor="cai-manufacturer">Manufacturer <span className="catalog-admin-hint">(optional)</span></label>
+                        <select id="cai-manufacturer" value={catalogAdminManufacturerId} onChange={e => setCatalogAdminManufacturerId(e.target.value)}>
+                          <option value="">None</option>
+                          {catalogAdminManufacturerList.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                        </select>
+                        <div className="catalog-admin-inline-create">
+                          <input className="catalog-admin-inline-input" placeholder="New manufacturer (e.g. LEGO, Bandai)" value={catalogAdminManufacturerNew} onChange={e => setCatalogAdminManufacturerNew(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); createCatalogAdminManufacturer() } }} />
+                          <button type="button" className="catalog-admin-inline-save" disabled={!catalogAdminManufacturerNew.trim()} onClick={createCatalogAdminManufacturer}>Add</button>
+                        </div>
+                      </div>
+                      {/* Publisher (universal) — who published/released the item */}
+                      <div>
+                        <label htmlFor="cai-publisher">Publisher <span className="catalog-admin-hint">(optional)</span></label>
+                        <select id="cai-publisher" value={catalogAdminPublisherId} onChange={e => setCatalogAdminPublisherId(e.target.value)}>
+                          <option value="">None</option>
+                          {catalogAdminPublisherList.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        </select>
+                        <div className="catalog-admin-inline-create">
+                          <input className="catalog-admin-inline-input" placeholder="New publisher (e.g. Topps, Panini)" value={catalogAdminPublisherNew} onChange={e => setCatalogAdminPublisherNew(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); createCatalogAdminPublisher() } }} />
+                          <button type="button" className="catalog-admin-inline-save" disabled={!catalogAdminPublisherNew.trim()} onClick={createCatalogAdminPublisher}>Add</button>
+                        </div>
                       </div>
                       {/* Packaging — metadata, not a classification; sits last.
                           Sets only: minifigs have no packaging. */}

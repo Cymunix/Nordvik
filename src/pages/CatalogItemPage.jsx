@@ -60,6 +60,8 @@ export default function CatalogItemPage({ scope }) {
     catalogPricingSource,
     catalogRarities,
     catalogRawItemRow,
+    catalogAdminManufacturerList,
+    catalogAdminPublisherList,
     catalogSetNavIndex,
     catalogSetNavItems,
     catalogSubcategories,
@@ -503,6 +505,8 @@ export default function CatalogItemPage({ scope }) {
                             : [editCatLabels.subset,      'subcollectble_set_id', catalogItemEditLookups.subsets,   false],
                           ...(editIsLego ? [[editCatLabels.productLine, 'product_line_id', catalogItemEditLookups.productLines, false]] : []),
                           ['Series',                      'series_id',            catalogItemEditLookups.series,    false],
+                          ['Manufacturer',                'manufacturer_id',      catalogAdminManufacturerList,     false],
+                          ['Publisher',                   'publisher_id',         catalogAdminPublisherList,        false],
                           !editIsLego && ['Print Type',   'print_type_id',        catalogItemEditLookups.printTypes, false],
                         ].filter(Boolean)
                       })().map(([label, field, options, upper]) => (
