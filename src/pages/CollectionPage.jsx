@@ -47,6 +47,10 @@ export default function CollectionPage({ scope }) {
     collectionFilterOptions,
     collectionFilterSpecies,
     collectionFilterSubtheme,
+    collectionFilterManufacturer,
+    collectionFilterPublisher,
+    setCollectionFilterManufacturer,
+    setCollectionFilterPublisher,
     collectionLoadError,
     collectionOverviewPage,
     collectionOverviewPageInput,
@@ -134,6 +138,7 @@ export default function CollectionPage({ scope }) {
 
   const hasExtraFilters =
     collectionFilterSubtheme || collectionFilterFaction || collectionFilterSpecies || collectionFilterCondition
+    || collectionFilterManufacturer || collectionFilterPublisher
 
   // ── Overview aggregates (all from real, already-loaded collection data) ──
   const totalItems = filteredCollectionItems.length
@@ -270,7 +275,8 @@ export default function CollectionPage({ scope }) {
                 <option value="quantity">Sort by: Quantity</option>
               </select>
               {(collectionFilterOptions.subthemes.length > 0 || collectionFilterOptions.factions.length > 0 ||
-                collectionFilterOptions.species.length > 0 || collectionFilterOptions.conditions.length > 0) && (
+                collectionFilterOptions.species.length > 0 || collectionFilterOptions.conditions.length > 0 ||
+                collectionFilterOptions.manufacturers.length > 0 || collectionFilterOptions.publishers.length > 0) && (
                 <button type="button" className={`nv-col-filter-btn${showFilters || hasExtraFilters ? ' is-active' : ''}`}
                   onClick={() => setShowFilters((v) => !v)} aria-label="More filters" title="More filters">
                   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M4 6h16M7 12h10M10 18h4" /></svg>
@@ -285,6 +291,18 @@ export default function CollectionPage({ scope }) {
                 <select className="nv-col-select" value={collectionFilterSubtheme} onChange={(e) => setCollectionFilterSubtheme(e.target.value)}>
                   <option value="">All sets</option>
                   {collectionFilterOptions.subthemes.map((v) => <option key={v} value={v}>{v}</option>)}
+                </select>
+              )}
+              {collectionFilterOptions.manufacturers.length > 0 && (
+                <select className="nv-col-select" value={collectionFilterManufacturer} onChange={(e) => setCollectionFilterManufacturer(e.target.value)}>
+                  <option value="">All manufacturers</option>
+                  {collectionFilterOptions.manufacturers.map((v) => <option key={v} value={v}>{v}</option>)}
+                </select>
+              )}
+              {collectionFilterOptions.publishers.length > 0 && (
+                <select className="nv-col-select" value={collectionFilterPublisher} onChange={(e) => setCollectionFilterPublisher(e.target.value)}>
+                  <option value="">All publishers</option>
+                  {collectionFilterOptions.publishers.map((v) => <option key={v} value={v}>{v}</option>)}
                 </select>
               )}
               {collectionFilterOptions.factions.length > 0 && (
@@ -306,7 +324,7 @@ export default function CollectionPage({ scope }) {
                 </select>
               )}
               {hasExtraFilters && (
-                <button type="button" className="nv-col-clear" onClick={() => { setCollectionFilterSubtheme(''); setCollectionFilterFaction(''); setCollectionFilterSpecies(''); setCollectionFilterCondition('') }}>Clear filters</button>
+                <button type="button" className="nv-col-clear" onClick={() => { setCollectionFilterSubtheme(''); setCollectionFilterFaction(''); setCollectionFilterSpecies(''); setCollectionFilterCondition(''); setCollectionFilterManufacturer(''); setCollectionFilterPublisher('') }}>Clear filters</button>
               )}
             </div>
           )}

@@ -2124,6 +2124,8 @@ function App() {
   const [collectionSearchQuery, setCollectionSearchQuery] = useState('')
   // Collection findability: schema-based filters + sort.
   const [collectionFilterSubtheme, setCollectionFilterSubtheme] = useState('')
+  const [collectionFilterManufacturer, setCollectionFilterManufacturer] = useState('')
+  const [collectionFilterPublisher, setCollectionFilterPublisher] = useState('')
   const [collectionFilterFaction, setCollectionFilterFaction] = useState('')
   const [collectionFilterSpecies, setCollectionFilterSpecies] = useState('')
   const [collectionFilterCondition, setCollectionFilterCondition] = useState('')
@@ -5915,6 +5917,7 @@ function App() {
       )
 
       let catalogItemsById = {}
+      let mfrPubByItemId = {}   // itemId → { manufacturer, publisher } (not in item_details)
       if (catalogItemIds.length > 0) {
         const catalogItemIdChunks = []
         for (let index = 0; index < catalogItemIds.length; index += 150) {
@@ -5927,6 +5930,24 @@ function App() {
             .select('*')
             .in('item_id', chunk)
         )))
+
+        // Universal Manufacturer / Publisher for the Collection filter (item_details
+        // does not expose them) — fetch from items and resolve names.
+        {
+          const mpByChunk = await Promise.all(catalogItemIdChunks.map((chunk) => (
+            supabase.from('items').select('item_id, manufacturer_id, publisher_id').in('item_id', chunk)
+          )))
+          const mpRows = mpByChunk.flatMap((r) => (Array.isArray(r.data) ? r.data : []))
+          const mfrIds = [...new Set(mpRows.map((r) => r.manufacturer_id).filter(Boolean))]
+          const pubIds = [...new Set(mpRows.map((r) => r.publisher_id).filter(Boolean))]
+          const [mfrs, pubs] = await Promise.all([
+            mfrIds.length ? supabase.from('manufacturers').select('manufacturer_id, name').in('manufacturer_id', mfrIds) : Promise.resolve({ data: [] }),
+            pubIds.length ? supabase.from('publishers').select('publisher_id, name').in('publisher_id', pubIds) : Promise.resolve({ data: [] }),
+          ])
+          const mfrName = Object.fromEntries((mfrs.data || []).map((m) => [m.manufacturer_id, m.name]))
+          const pubName = Object.fromEntries((pubs.data || []).map((p) => [p.publisher_id, p.name]))
+          for (const r of mpRows) mfrPubByItemId[r.item_id] = { manufacturer: mfrName[r.manufacturer_id] || '', publisher: pubName[r.publisher_id] || '' }
+        }
 
         const normalizeDelimitedList = (value) => {
           if (Array.isArray(value)) {
@@ -6092,6 +6113,8 @@ function App() {
             setName: '',
             franchiseName: resolvedCatalogItem?.franchise || '',
             brandName: resolvedCatalogItem?.brand || '',
+            manufacturer: mfrPubByItemId[catalogItemId]?.manufacturer || '',
+            publisher: mfrPubByItemId[catalogItemId]?.publisher || '',
             subtheme: resolvedCatalogItem?.collectible_set || '',
             teams: Array.isArray(resolvedCatalogItem?.teams)
               ? resolvedCatalogItem.teams
@@ -12940,6 +12963,8 @@ function App() {
     }
 
     if (collectionFilterSubtheme && (item.subtheme || '') !== collectionFilterSubtheme) return false
+    if (collectionFilterManufacturer && (item.manufacturer || '') !== collectionFilterManufacturer) return false
+    if (collectionFilterPublisher && (item.publisher || '') !== collectionFilterPublisher) return false
     if (collectionFilterFaction && !(Array.isArray(item.teams) && item.teams.includes(collectionFilterFaction))) return false
     if (collectionFilterSpecies && (item.species || '') !== collectionFilterSpecies) return false
     if (collectionFilterCondition && !(Array.isArray(item.conditions) && item.conditions.includes(collectionFilterCondition))) return false
@@ -12975,14 +13000,17 @@ function App() {
   // Distinct filter options present in the collection (drives the dropdowns).
   const collectionFilterOptions = (() => {
     const subthemes = new Set(), factions = new Set(), species = new Set(), conditions = new Set()
+    const manufacturers = new Set(), publishers = new Set()
     for (const item of collectionItems) {
       if (item.subtheme) subthemes.add(item.subtheme)
+      if (item.manufacturer) manufacturers.add(item.manufacturer)
+      if (item.publisher) publishers.add(item.publisher)
       if (Array.isArray(item.teams)) item.teams.forEach(t => factions.add(t))
       if (item.species) species.add(item.species)
       if (Array.isArray(item.conditions)) item.conditions.forEach(c => conditions.add(c))
     }
     const sorted = (s) => [...s].sort((a, b) => a.localeCompare(b))
-    return { subthemes: sorted(subthemes), factions: sorted(factions), species: sorted(species), conditions: sorted(conditions) }
+    return { subthemes: sorted(subthemes), manufacturers: sorted(manufacturers), publishers: sorted(publishers), factions: sorted(factions), species: sorted(species), conditions: sorted(conditions) }
   })()
 
   const filteredCollectionItemIds = new Set(filteredCollectionItems.map((item) => item.id))
@@ -13672,7 +13700,7 @@ function App() {
 
   useEffect(() => {
     setCollectionOverviewPage(1)
-  }, [activeCollectionFilter, activeStorageFilter, collectionSearchQuery, collectionFilterSubtheme, collectionFilterFaction, collectionFilterSpecies, collectionFilterCondition, collectionSortKey])
+  }, [activeCollectionFilter, activeStorageFilter, collectionSearchQuery, collectionFilterSubtheme, collectionFilterManufacturer, collectionFilterPublisher, collectionFilterFaction, collectionFilterSpecies, collectionFilterCondition, collectionSortKey])
 
   useEffect(() => {
     if (collectionOverviewPage > collectionOverviewTotalPages) {
@@ -14021,6 +14049,10 @@ function App() {
     collectionFilterOptions,
     collectionFilterSpecies,
     collectionFilterSubtheme,
+    collectionFilterManufacturer,
+    collectionFilterPublisher,
+    setCollectionFilterManufacturer,
+    setCollectionFilterPublisher,
     collectionItemDetailActionError,
     collectionItemDetailActionMessage,
     collectionLoadError,
