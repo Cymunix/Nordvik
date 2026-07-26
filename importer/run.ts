@@ -16,14 +16,17 @@
 import { Logger, formatReport } from './services/logger.ts'
 import { SupabaseSync } from './services/syncService.ts'
 import { runOnePieceImport, type ImportOptions } from './importers/onePieceImporter.ts'
+import { runPokemonImport } from './importers/pokemonImporter.ts'
 
 function parseArgs(argv: string[]): ImportOptions {
-  const o: ImportOptions = { dryRun: false, setFilter: null, checkImages: false, jsonOut: null, verbose: false }
+  const o: ImportOptions = { game: 'one-piece', dryRun: false, setFilter: null, checkImages: false, jsonOut: null, verbose: false }
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i]
     if (a === '--dry-run') o.dryRun = true
     else if (a === '--check-images') o.checkImages = true
     else if (a === '--verbose' || a === '-v') o.verbose = true
+    else if (a === '--game') o.game = normGame(argv[++i])
+    else if (a.startsWith('--game=')) o.game = normGame(a.slice(7))
     else if (a === '--set') o.setFilter = (o.setFilter || []).concat((argv[++i] || '').split(','))
     else if (a.startsWith('--set=')) o.setFilter = (o.setFilter || []).concat(a.slice(6).split(','))
     else if (a === '--json-out') o.jsonOut = argv[++i] || null
@@ -31,6 +34,13 @@ function parseArgs(argv: string[]): ImportOptions {
   }
   if (o.setFilter) o.setFilter = o.setFilter.map((s) => s.trim()).filter(Boolean)
   return o
+}
+
+function normGame(v: string | undefined): ImportOptions['game'] {
+  const g = (v || '').trim().toLowerCase()
+  if (g === 'pokemon' || g === 'pokémon' || g === 'pkmn') return 'pokemon'
+  if (g === 'one-piece' || g === 'onepiece' || g === 'op') return 'one-piece'
+  throw new Error(`Unknown --game "${v}". Use "one-piece" or "pokemon".`)
 }
 
 async function main(): Promise<void> {
@@ -53,7 +63,10 @@ async function main(): Promise<void> {
   }
 
   try {
-    const report = await runOnePieceImport(sync, log, opts)
+    log.info(`Game: ${opts.game}`)
+    const report = opts.game === 'pokemon'
+      ? await runPokemonImport(sync, log, opts)
+      : await runOnePieceImport(sync, log, opts)
     console.log('\n' + formatReport(report))
     const errs = report.validationIssues.filter((i) => i.severity === 'error')
     if (errs.length) {

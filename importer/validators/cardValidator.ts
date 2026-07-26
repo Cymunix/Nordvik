@@ -2,8 +2,6 @@
 // shape, so it's shared by every TCG mapper.
 import type { NordvikCard, ValidationIssue } from '../types.ts'
 
-const VALID_CARD_TYPES = new Set(['character', 'leader', 'event', 'stage', 'don', 'don!!'])
-
 function issue(
   card: NordvikCard,
   field: string,
@@ -17,8 +15,13 @@ function issue(
  * Structural validation of one card. Returns every problem found (never throws),
  * so the importer can report them and keep going.
  */
-export function validateCard(card: NordvikCard): ValidationIssue[] {
+export function validateCard(card: NordvikCard, validItemTypes?: readonly string[]): ValidationIssue[] {
   const issues: ValidationIssue[] = []
+  // Per-game vocabulary — the mapper supplies its own recognised item types, so
+  // this stays game-agnostic. When none are supplied, the check is skipped.
+  const validTypes = validItemTypes && validItemTypes.length
+    ? new Set(validItemTypes.map((t) => t.toLowerCase()))
+    : null
 
   if (!card.sourceId) issues.push(issue(card, 'sourceId', 'Missing unique printing id (card_image_id)'))
   if (!card.cardNumber) issues.push(issue(card, 'cardNumber', 'Missing card number (card_set_id)'))
@@ -28,7 +31,7 @@ export function validateCard(card: NordvikCard): ValidationIssue[] {
   if (!card.subjectName.trim()) issues.push(issue(card, 'subjectName', 'Empty card name'))
   if (!card.property.trim()) issues.push(issue(card, 'property', 'Missing set / property (invalid set reference)'))
 
-  if (card.itemType && !VALID_CARD_TYPES.has(card.itemType.toLowerCase())) {
+  if (validTypes && card.itemType && !validTypes.has(card.itemType.toLowerCase())) {
     // Warning, not error: the game occasionally adds a new type — import it, flag it.
     issues.push(issue(card, 'itemType', `Unrecognised card type "${card.itemType}"`, 'warning'))
   }

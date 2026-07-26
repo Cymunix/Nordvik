@@ -37,6 +37,7 @@ export const onePieceMapper: TcgMapper<OptcgCard, OptcgSet> = {
     franchise: 'One Piece',
     subfranchise: 'The One Piece Card Game',
   },
+  validItemTypes: ['Character', 'Leader', 'Event', 'Stage', 'DON', 'DON!!'],
 
   mapCard(apiCard: OptcgCard, set: OptcgSet): NordvikCard {
     const cardNumber = String(apiCard.card_set_id || '').trim()
