@@ -25,7 +25,28 @@ export default function CardVariants({ itemId, cardNumber, franchiseId, onOpenIt
         .eq('franchise_id', franchiseId)
       if (cancelled) return
       if (error) { setStatus('empty'); return }
-      const rows = (data || []).filter((r) => r.item_id !== itemId)
+      let candidates = data || []
+      // A shared card number within a game is NOT enough: many games (e.g. Star
+      // Wars Pocketmodel) restart numbering in each set, so card "1" exists in
+      // every set. Real variants must ALSO belong to the same Property (the set).
+      // Two items are variants only if their Property sets match — share at least
+      // one Property, or both have none (the One Piece case, where the number is
+      // globally unique and variants carry no Property).
+      const ids = candidates.map((r) => r.item_id)
+      const propsByItem = new Map(ids.map((id) => [id, new Set()]))
+      if (ids.length > 1) {
+        const { data: links } = await supabase
+          .from('item_properties').select('item_id, property_id').in('item_id', ids)
+        for (const l of (links || [])) propsByItem.get(l.item_id)?.add(l.property_id)
+      }
+      const selfProps = propsByItem.get(itemId) || new Set()
+      const rows = candidates.filter((r) => {
+        if (r.item_id === itemId) return false
+        const p = propsByItem.get(r.item_id) || new Set()
+        if (selfProps.size === 0 && p.size === 0) return true
+        for (const x of selfProps) if (p.has(x)) return true
+        return false
+      })
       setVariants(rows.map((r) => ({
         id: r.item_id,
         name: r.subject || r.description || 'Variant',
