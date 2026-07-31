@@ -62,6 +62,11 @@ export default function CatalogItemPage({ scope }) {
     catalogRawItemRow,
     catalogAdminManufacturerList,
     catalogAdminPublisherList,
+    catalogItemEditPortrays,
+    catalogItemEditPortrayNew,
+    setCatalogItemEditPortrayNew,
+    addCatalogItemEditPortray,
+    removeCatalogItemEditPortray,
     catalogSetNavIndex,
     catalogSetNavItems,
     catalogSubcategories,
@@ -505,6 +510,8 @@ export default function CatalogItemPage({ scope }) {
                             : [editCatLabels.subset,      'subcollectble_set_id', catalogItemEditLookups.subsets,   false],
                           ...(editIsLego ? [[editCatLabels.productLine, 'product_line_id', catalogItemEditLookups.productLines, false]] : []),
                           ['Series',                      'series_id',            catalogItemEditLookups.series,    false],
+                          // Item Type: cascade level (item_types, scoped to Subcategory).
+                          ['Item Type',                   'item_type_id',         catalogItemEditLookups.itemTypes, false],
                           ['Manufacturer',                'manufacturer_id',      catalogAdminManufacturerList,     false],
                           ['Publisher',                   'publisher_id',         catalogAdminPublisherList,        false],
                           !editIsLego && ['Print Type',   'print_type_id',        catalogItemEditLookups.printTypes, false],
@@ -544,6 +551,44 @@ export default function CatalogItemPage({ scope }) {
                               ))}
                             </div>
                           )}
+                        </div>
+                      </div>
+                      {/* Subject is now a plain text column on items (was subject_id). */}
+                      <label className="catalog-item-edit-field">
+                        <span>Subject</span>
+                        <input type="text" value={catalogItemEditValues.subject || ''} onChange={e => setCatalogItemEditValues(v => ({ ...v, subject: e.target.value }))} placeholder="e.g. ATTE, T-Rex, Feraligatr" />
+                      </label>
+                      <label className="catalog-item-edit-field">
+                        <span>Availability</span>
+                        <input type="text" value={catalogItemEditValues.availability || ''} onChange={e => setCatalogItemEditValues(v => ({ ...v, availability: e.target.value }))} placeholder="e.g. Retired, Available" />
+                      </label>
+                      {/* Portrays — multi-value, backed by the portrays lookup table. */}
+                      <div className="catalog-item-edit-field catalog-item-edit-field--wide">
+                        <span>Portrays</span>
+                        {catalogItemEditPortrays.length > 0 && (
+                          <div className="catalog-admin-subject-tags">
+                            {catalogItemEditPortrays.map(p => (
+                              <span key={p.id} className="catalog-admin-subject-tag">
+                                <span style={{ fontWeight: 600 }}>{p.name}</span>
+                                <button type="button" className="catalog-admin-subject-tag-remove" onClick={() => removeCatalogItemEditPortray(p.id)}>✕</button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <div className="catalog-admin-inline-create">
+                          <input
+                            className="catalog-admin-inline-input"
+                            style={{ width: '100%' }}
+                            list="catalog-portrays-list"
+                            placeholder="Add a person/character (e.g. Mark Hamill)"
+                            value={catalogItemEditPortrayNew}
+                            onChange={e => setCatalogItemEditPortrayNew(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCatalogItemEditPortray() } }}
+                          />
+                          <datalist id="catalog-portrays-list">
+                            {(catalogItemEditLookups.portrays || []).map(p => <option key={p.id} value={p.name} />)}
+                          </datalist>
+                          <button type="button" className="catalog-admin-inline-save" disabled={!catalogItemEditPortrayNew.trim()} onClick={addCatalogItemEditPortray}>Add</button>
                         </div>
                       </div>
                       <label className="catalog-item-edit-field">
@@ -1502,6 +1547,10 @@ export default function CatalogItemPage({ scope }) {
                           // Universal Manufacturer / Publisher (from the raw item row; not in _details).
                           { label: 'Manufacturer',  value: catalogRawItemRow?.manufacturer_name || '', onClick: null },
                           { label: 'Publisher',     value: catalogRawItemRow?.publisher_name || '',    onClick: null },
+                          // Item Type (cascade level), Availability, and Portrays.
+                          { label: 'Item Type',     value: catalogRawItemRow?.item_type_name || '',    onClick: null },
+                          { label: 'Availability',  value: catalogRawItemRow?.availability || '',      onClick: null },
+                          { label: 'Portrays',      value: (catalogRawItemRow?.portrays_names || []).join(', '), onClick: null },
                           { label: 'Collectible Set', value: d.collectible_set,   onClick: d.collectible_set_id ? () => goTo(() => { setCatalogCategory(d.category || 'all'); setCatalogSubcategory(d.subcategory || ''); setCatalogFranchise(d.franchise_id || d.franchise || 'all'); setCatalogBrandId(d.brand_id || ''); setCatalogSetId(d.collectible_set_id) }) : null },
                           { label: 'Release Year',  value: d.release_year ?? 'N/A', onClick: d.release_year ? () => goTo(() => { setCatalogMinYear(String(d.release_year)); setCatalogMaxYear(String(d.release_year)) }) : null },
                           { label: 'Subset',        value: d.subcollectible_set,  onClick: d.subcollectble_set_id ? () => goTo(() => { setCatalogCategory(d.category || 'all'); setCatalogSubcategory(d.subcategory || ''); setCatalogFranchise(d.franchise_id || d.franchise || 'all'); setCatalogBrandId(d.brand_id || ''); setCatalogSetId(d.collectible_set_id || ''); setCatalogSubsetId(d.subcollectble_set_id) }) : null },
@@ -1569,6 +1618,8 @@ export default function CatalogItemPage({ scope }) {
                           // Manufacturer/Publisher are rendered as curated rows above
                           // (by name); keep the raw ids and resolved names out of the blob.
                           'manufacturer_id', 'publisher_id', 'manufacturer_name', 'publisher_name',
+                          // Item Type / Availability / Portrays render as curated rows above.
+                          'item_type_id', 'item_type_name', 'availability', 'portrays_names', 'subject',
                         ])
                         // Friendlier labels for known dynamic card fields; anything
                         // else falls back to friendlyLabel().

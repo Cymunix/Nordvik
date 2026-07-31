@@ -1885,6 +1885,16 @@ function App() {
   const [catalogFranchiseLinkedBrands, setCatalogFranchiseLinkedBrands] = useState([])
   const [catalogBrands, setCatalogBrands] = useState([])
   const [catalogBrandId, setCatalogBrandId] = useState('')
+  // Item Type is now its own cascade level (item_types, scoped to Subcategory).
+  // brand_id is still written in parallel — LEGO Sets/Minifigs logic and
+  // market_variants still key off it — until that's migrated separately.
+  const [catalogItemTypeOptions, setCatalogItemTypeOptions] = useState([])
+  const [catalogItemTypeId, setCatalogItemTypeId] = useState('')
+  // Portrays (lookup facet) + Availability filters.
+  const [catalogPortrayOptions, setCatalogPortrayOptions] = useState([])
+  const [catalogPortrayIds, setCatalogPortrayIds] = useState([])
+  const [catalogAvailability, setCatalogAvailability] = useState('')
+  const [catalogAvailabilityOptions, setCatalogAvailabilityOptions] = useState([])
   const [catalogTeamId, setCatalogTeamId] = useState('')
   const [catalogSetId, setCatalogSetId] = useState('')
   const [catalogSubsetId, setCatalogSubsetId] = useState('')
@@ -1953,7 +1963,10 @@ function App() {
   const [catalogDetailLego, setCatalogDetailLego] = useState(null)
   const [isCatalogItemEditMode, setIsCatalogItemEditMode] = useState(false)
   const [catalogItemEditValues, setCatalogItemEditValues] = useState({})
-  const [catalogItemEditLookups, setCatalogItemEditLookups] = useState({ subjects: [], sets: [], subsets: [], teams: [], printTypes: [], cardTypes: [], franchises: [], brands: [], subthemes: [], productLines: [], series: [] })
+  const [catalogItemEditLookups, setCatalogItemEditLookups] = useState({ subjects: [], sets: [], subsets: [], teams: [], printTypes: [], cardTypes: [], franchises: [], brands: [], subthemes: [], productLines: [], series: [], itemTypes: [], portrays: [] })
+  // Portrays chosen on the item edit form (multi-value; persisted to item_portrays).
+  const [catalogItemEditPortrays, setCatalogItemEditPortrays] = useState([])
+  const [catalogItemEditPortrayNew, setCatalogItemEditPortrayNew] = useState('')
   const [catalogItemEditTeamIds, setCatalogItemEditTeamIds] = useState([])
   const [catalogItemEditCardTypeIds, setCatalogItemEditCardTypeIds] = useState([])
   const [catalogItemEditSubjectIds, setCatalogItemEditSubjectIds] = useState([])
@@ -2207,6 +2220,10 @@ function App() {
   const [catalogAdminBackImageFile, setCatalogAdminBackImageFile] = useState(null)
   const [catalogAdminBrands, setCatalogAdminBrands] = useState([])
   const [catalogAdminBrandId, setCatalogAdminBrandId] = useState('')
+  // Admin Item Type picker (item_types scoped to the selected Subcategory).
+  const [catalogAdminItemTypes, setCatalogAdminItemTypes] = useState([])
+  const [catalogAdminItemTypeId, setCatalogAdminItemTypeId] = useState('')
+  const [catalogAdminItemTypeNew, setCatalogAdminItemTypeNew] = useState('')
   const [legoPropertyRegistry, setLegoPropertyRegistry] = useState([])
   const [catalogAdminNewBrandName, setCatalogAdminNewBrandName] = useState('')
   const [catalogAdminIsCreatingBrand, setCatalogAdminIsCreatingBrand] = useState(false)
@@ -3634,6 +3651,56 @@ function App() {
     return () => { cancelled = true }
   }, [currentScreen, selectedCatalogCategoryRecord?.id, selectedCatalogSubcategoryRecord?.id])
 
+  // Faceted filters: Item Type (item_types, scoped to the selected Subcategory),
+  // Portrays (lookup) and Availability — all derived from items actually in view.
+  useEffect(() => {
+    if (currentScreen !== 'catalog') return
+    let cancelled = false
+    ;(async () => {
+      const subcatId = selectedCatalogSubcategoryRecord?.id || ''
+      // Item Type follows the cascade: only offer types for the chosen subcategory.
+      if (subcatId) {
+        const { data } = await supabase.from('item_types')
+          .select('item_type_id, name').eq('subcategory_id', subcatId).order('name')
+        if (cancelled) return
+        const list = (data || []).map(r => ({ id: r.item_type_id, name: r.name }))
+        setCatalogItemTypeOptions(list)
+        setCatalogItemTypeId(prev => list.some(t => t.id === prev) ? prev : '')
+      } else {
+        setCatalogItemTypeOptions([])
+        setCatalogItemTypeId(prev => prev ? '' : prev)
+      }
+
+      // Portrays + Availability, scoped to the items in the current view.
+      let base = supabase.from('items').select('item_id, availability')
+      if (selectedCatalogCategoryRecord) base = base.eq('category_id', selectedCatalogCategoryRecord.id)
+      if (subcatId) base = base.eq('subcategory_id', subcatId)
+      const { data: rows } = await base.limit(20000)
+      if (cancelled) return
+      const avail = [...new Set((rows || []).map(r => (r.availability || '').trim()).filter(Boolean))].sort()
+      setCatalogAvailabilityOptions(avail)
+      setCatalogAvailability(prev => avail.includes(prev) ? prev : '')
+
+      const itemIds = (rows || []).map(r => r.item_id)
+      const pIds = new Set()
+      for (let i = 0; i < itemIds.length; i += 500) {
+        const { data: links } = await supabase.from('item_portrays')
+          .select('portray_id').in('item_id', itemIds.slice(i, i + 500))
+        for (const l of (links || [])) if (l.portray_id) pIds.add(l.portray_id)
+      }
+      if (cancelled) return
+      let pList = []
+      if (pIds.size) {
+        const { data: ps } = await supabase.from('portrays')
+          .select('portray_id, name').in('portray_id', [...pIds]).order('name')
+        pList = (ps || []).map(r => ({ id: r.portray_id, name: r.name }))
+      }
+      setCatalogPortrayOptions(pList)
+      setCatalogPortrayIds(prev => prev.filter(id => pList.some(p => p.id === id)))
+    })()
+    return () => { cancelled = true }
+  }, [currentScreen, selectedCatalogCategoryRecord?.id, selectedCatalogSubcategoryRecord?.id])
+
   // Effect F: subject typeahead search (category-scoped when a category is selected)
   useEffect(() => {
     if (currentScreen !== 'catalog') return
@@ -3988,6 +4055,21 @@ function App() {
         const { data } = await supabase.from('items').select('item_id').eq('series_id', catalogSeriesId)
         facetIdLists.push((data || []).map(r => r.item_id))
       }
+      // Item Type (items.item_type_id) and Availability (items.availability) —
+      // neither is exposed by the item_details view, so pre-query the ids.
+      if (catalogItemTypeId) {
+        const { data } = await supabase.from('items').select('item_id').eq('item_type_id', catalogItemTypeId)
+        facetIdLists.push((data || []).map(r => r.item_id))
+      }
+      if (catalogAvailability) {
+        const { data } = await supabase.from('items').select('item_id').eq('availability', catalogAvailability)
+        facetIdLists.push((data || []).map(r => r.item_id))
+      }
+      // Portrays (m2m) — multi-select is AND across the chosen people.
+      for (const pid of catalogPortrayIds) {
+        const { data } = await supabase.from('item_portrays').select('item_id').eq('portray_id', pid)
+        facetIdLists.push((data || []).map(r => r.item_id))
+      }
       // Universal Manufacturer / Publisher facets (items.*_id, not in item_details).
       if (catalogManufacturerId) {
         const { data } = await supabase.from('items').select('item_id').eq('manufacturer_id', catalogManufacturerId)
@@ -4234,6 +4316,9 @@ function App() {
     catalogSeriesId,
     catalogManufacturerId,
     catalogPublisherId,
+    catalogItemTypeId,
+    catalogAvailability,
+    catalogPortrayIds,
     catalogTeamId,
     currentScreen,
     selectedCatalogCategoryRecord,
@@ -4308,6 +4393,7 @@ function App() {
     catalogMaxYear, catalogMinYear, catalogPrintTypeId, catalogRarityId, catalogSetId,
     catalogSortKey, catalogSubcategory, catalogSubjectId, catalogSubsetId,
     catalogManufacturerId, catalogPublisherId,
+    catalogItemTypeId, catalogAvailability, catalogPortrayIds,
     catalogTeamId,
   ])
 
@@ -4877,6 +4963,70 @@ function App() {
   // Clear a stale Series pick when the Subcategory changes.
   useEffect(() => { setCatalogAdminSeriesId('') }, [catalogAdminSubcategoryId])
 
+  // Item Types for the admin form — scoped to the selected Subcategory, matching
+  // the rest of the cascade. Auto-selects when the subcategory has exactly one
+  // child (same behaviour as the other cascade levels).
+  useEffect(() => {
+    if (currentScreen !== 'catalog' || !isPlatformAdmin || !catalogAdminSubcategoryId) {
+      setCatalogAdminItemTypes([]); setCatalogAdminItemTypeId(''); return
+    }
+    let cancelled = false
+    supabase.from('item_types').select('item_type_id, name')
+      .eq('subcategory_id', catalogAdminSubcategoryId).order('name')
+      .then(({ data, error }) => {
+        if (cancelled) return
+        const list = error ? [] : (data || []).map(r => ({ id: r.item_type_id, name: r.name }))
+        setCatalogAdminItemTypes(list)
+        setCatalogAdminItemTypeId(prev => {
+          if (list.some(t => t.id === prev)) return prev
+          return list.length === 1 ? list[0].id : ''
+        })
+      })
+    return () => { cancelled = true }
+  }, [currentScreen, isPlatformAdmin, catalogAdminSubcategoryId])
+
+  // Item edit form: attach a Portrays value, creating the lookup row if new.
+  // Lookup-backed so "everything portraying X" stays queryable catalogue-wide.
+  const addCatalogItemEditPortray = async () => {
+    const name = catalogItemEditPortrayNew.trim()
+    if (!name) return
+    if (catalogItemEditPortrays.some(p => p.name.toLowerCase() === name.toLowerCase())) {
+      setCatalogItemEditPortrayNew(''); return
+    }
+    const known = (catalogItemEditLookups.portrays || []).find(p => p.name.toLowerCase() === name.toLowerCase())
+    let id = known?.id || null
+    if (!id) {
+      const { data: found } = await supabase.from('portrays').select('portray_id').ilike('name', name).limit(1).maybeSingle()
+      id = found?.portray_id || null
+      if (!id) {
+        const { data: created, error } = await supabase.from('portrays').insert({ name }).select('portray_id').single()
+        if (error || !created) return
+        id = created.portray_id
+        setCatalogItemEditLookups(v => ({ ...v, portrays: [...(v.portrays || []), { id, name }].sort((a, b) => a.name.localeCompare(b.name)) }))
+      }
+    }
+    setCatalogItemEditPortrays(prev => [...prev, { id, name }])
+    setCatalogItemEditPortrayNew('')
+  }
+  const removeCatalogItemEditPortray = (id) =>
+    setCatalogItemEditPortrays(prev => prev.filter(p => p.id !== id))
+
+  // Create-or-select helper for Item Type (scoped to the current Subcategory).
+  const createCatalogAdminItemType = async () => {
+    const name = catalogAdminItemTypeNew.trim()
+    if (!name || !catalogAdminSubcategoryId) return
+    const existing = catalogAdminItemTypes.find(t => t.name.toLowerCase() === name.toLowerCase())
+    if (existing) { setCatalogAdminItemTypeId(existing.id); setCatalogAdminItemTypeNew(''); return }
+    const { data, error } = await supabase.from('item_types')
+      .insert({ name, subcategory_id: catalogAdminSubcategoryId })
+      .select('item_type_id, name').single()
+    if (error || !data) return
+    const item = { id: data.item_type_id, name: data.name }
+    setCatalogAdminItemTypes(prev => [...prev, item].sort((a, b) => a.name.localeCompare(b.name)))
+    setCatalogAdminItemTypeId(item.id)
+    setCatalogAdminItemTypeNew('')
+  }
+
   // Universal Manufacturer / Publisher lists for the admin editor (not scoped).
   useEffect(() => {
     if (currentScreen !== 'catalog' || !isPlatformAdmin) { setCatalogAdminManufacturerList([]); setCatalogAdminPublisherList([]); return }
@@ -5276,6 +5426,37 @@ function App() {
   }, [isCatalogItemEditMode, catalogItemEditValues.franchise_id])
 
   // Edit panel: cascade collectible sets from franchise + brand. For LEGO the
+  // Edit mode: Item Types for the item's Subcategory (cascade level), plus the
+  // full Portrays lookup for the multi-value picker.
+  useEffect(() => {
+    if (!isCatalogItemEditMode) return
+    const subcatId = catalogItemEditValues.subcategory_id
+    if (subcatId) {
+      supabase.from('item_types').select('item_type_id, name').eq('subcategory_id', subcatId).order('name')
+        .then(({ data, error }) => setCatalogItemEditLookups(v => ({
+          ...v, itemTypes: error ? [] : (data || []).map(r => ({ id: r.item_type_id, name: r.name })),
+        })))
+    } else {
+      setCatalogItemEditLookups(v => ({ ...v, itemTypes: [] }))
+    }
+    supabase.from('portrays').select('portray_id, name').order('name').limit(1000)
+      .then(({ data, error }) => setCatalogItemEditLookups(v => ({
+        ...v, portrays: error ? [] : (data || []).map(r => ({ id: r.portray_id, name: r.name })),
+      })))
+  }, [isCatalogItemEditMode, catalogItemEditValues.subcategory_id])
+
+  // Edit mode: load this item's existing Portrays links.
+  useEffect(() => {
+    if (!isCatalogItemEditMode || !selectedCatalogItem?.id) return
+    let cancelled = false
+    supabase.from('item_portrays').select('portray_id, portrays(name)').eq('item_id', selectedCatalogItem.id)
+      .then(({ data, error }) => {
+        if (cancelled || error) return
+        setCatalogItemEditPortrays((data || []).map(r => ({ id: r.portray_id, name: r.portrays?.name || '' })))
+      })
+    return () => { cancelled = true }
+  }, [isCatalogItemEditMode, selectedCatalogItem?.id])
+
   // "collectible set" is global Packaging (brand_id null), not franchise-scoped.
   useEffect(() => {
     if (!isCatalogItemEditMode) return
@@ -8416,7 +8597,7 @@ function App() {
       supabase.from('item_teams').select('team_id').eq('item_id', selectedCatalogItem.id),
       supabase.from('item_card_types').select('card_type_id').eq('item_id', selectedCatalogItem.id),
       supabase.from('item_subjects').select('subject_id, subjects(subject_name, subject_type)').eq('item_id', selectedCatalogItem.id),
-      supabase.from('items').select('rarity_id, mtg_card_type_id, retail_price, market_price, subset_id, series_id, manufacturer_id, publisher_id').eq('item_id', selectedCatalogItem.id).maybeSingle(),
+      supabase.from('items').select('rarity_id, mtg_card_type_id, retail_price, market_price, subset_id, series_id, manufacturer_id, publisher_id, item_type_id, subject, availability').eq('item_id', selectedCatalogItem.id).maybeSingle(),
       franchiseId
         ? supabase.from('teams').select('team_id, name').eq('franchise_id', franchiseId).order('name')
         : Promise.resolve({ data: [] }),
@@ -8440,6 +8621,9 @@ function App() {
       series_id: itemMtgMeta?.series_id || '',
       manufacturer_id: itemMtgMeta?.manufacturer_id || '',
       publisher_id: itemMtgMeta?.publisher_id || '',
+      item_type_id: itemMtgMeta?.item_type_id || '',
+      subject: itemMtgMeta?.subject || '',
+      availability: itemMtgMeta?.availability || '',
       product_line_id: itemProductLines?.[0]?.product_line_id || '',
     }))
     setCatalogItemEditSubjectIds((itemSubjects || []).map(r => ({ id: r.subject_id, name: r.subjects?.subject_name || '', type: r.subjects?.subject_type || '' })))
@@ -8470,6 +8654,9 @@ function App() {
         series_id:            v.series_id             || null,
         manufacturer_id:      v.manufacturer_id       || null,
         publisher_id:         v.publisher_id          || null,
+        item_type_id:         v.item_type_id          || null,
+        subject:              v.subject?.trim()       || null,
+        availability:         v.availability?.trim()  || null,
         print_type_id:        v.print_type_id         || null,
         bricklink_id:         v.bricklink_id?.trim()         || null,
         rebrickable_fig_id:   v.rebrickable_fig_id?.trim()   || null,
@@ -8495,6 +8682,13 @@ function App() {
       await supabase.from('item_subjects').insert(catalogItemEditSubjectIds.map(s => ({ item_id: selectedCatalogItem.id, subject_id: s.id })))
     } else {
       await supabase.from('items').update({ subject_id: null }).eq('item_id', selectedCatalogItem.id)
+    }
+    // Portrays (m2m lookup) — replace the item's links with the current picks.
+    await supabase.from('item_portrays').delete().eq('item_id', selectedCatalogItem.id)
+    if (catalogItemEditPortrays.length > 0) {
+      const { error: pErr } = await supabase.from('item_portrays').insert(
+        catalogItemEditPortrays.map(p => ({ item_id: selectedCatalogItem.id, portray_id: p.id })))
+      if (pErr) console.error('item_portrays insert error:', pErr)
     }
     await supabase.from('item_teams').delete().eq('item_id', selectedCatalogItem.id)
     if (catalogItemEditTeamIds.length > 0) {
@@ -10320,6 +10514,9 @@ function App() {
         series_id:            catalogAdminSeriesId                || null,
         manufacturer_id:      catalogAdminManufacturerId          || null,
         publisher_id:         catalogAdminPublisherId             || null,
+        // Item Type is now its own cascade level; brand_id is still written in
+        // parallel (LEGO Sets/Minifigs logic + market_variants depend on it).
+        item_type_id:         catalogAdminItemTypeId              || null,
         subject_id:           null,
         description:          catalogAdminItemDescription.trim()  || null,
         bricklink_id:         catalogAdminBricklinkId.trim()      || null,
@@ -13766,18 +13963,26 @@ function App() {
     ;(async () => {
       const { data, error } = await supabase
         .from('items')
-        .select('item_id, category_id, subcategory_id, franchise_id, brand_id, manufacturer_id, publisher_id, collectible_set_id, subcollectble_set_id, subject_id, description, print_type_id, card_number, print_count, image_path, catalog_code, piece_count, release_year, attributes, dynamic_fields, upc, bricklink_id, rebrickable_fig_id, rarity_id, mtg_card_type_id, market_price, minifig_code, lego_set_number, retail_price, subset_id, series_id, name')
+        .select('item_id, category_id, subcategory_id, franchise_id, brand_id, manufacturer_id, publisher_id, item_type_id, subject, availability, collectible_set_id, subcollectble_set_id, subject_id, description, print_type_id, card_number, print_count, image_path, catalog_code, piece_count, release_year, attributes, dynamic_fields, upc, bricklink_id, rebrickable_fig_id, rarity_id, mtg_card_type_id, market_price, minifig_code, lego_set_number, retail_price, subset_id, series_id, name')
         .eq('item_id', itemId)
         .maybeSingle()
       // Resolve the universal Manufacturer / Publisher names for display (these are
       // not part of the item_details view). Attached to the raw row as *_name.
       let row = error ? null : data
       if (row) {
-        const [mfr, pub] = await Promise.all([
+        const [mfr, pub, itype, portrayLinks] = await Promise.all([
           row.manufacturer_id ? supabase.from('manufacturers').select('name').eq('manufacturer_id', row.manufacturer_id).maybeSingle() : Promise.resolve({ data: null }),
           row.publisher_id ? supabase.from('publishers').select('name').eq('publisher_id', row.publisher_id).maybeSingle() : Promise.resolve({ data: null }),
+          row.item_type_id ? supabase.from('item_types').select('name').eq('item_type_id', row.item_type_id).maybeSingle() : Promise.resolve({ data: null }),
+          supabase.from('item_portrays').select('portrays(name)').eq('item_id', itemId),
         ])
-        row = { ...row, manufacturer_name: mfr?.data?.name || '', publisher_name: pub?.data?.name || '' }
+        row = {
+          ...row,
+          manufacturer_name: mfr?.data?.name || '',
+          publisher_name: pub?.data?.name || '',
+          item_type_name: itype?.data?.name || '',
+          portrays_names: (portrayLinks?.data || []).map(r => r.portrays?.name).filter(Boolean),
+        }
       }
       if (!cancelled) setCatalogRawItemRow(row)
     })()
@@ -13904,6 +14109,17 @@ function App() {
     catalogAdminRetailPrice,
     catalogAdminSeriesId,
     catalogAdminSeriesList,
+    catalogItemEditPortrays,
+    catalogItemEditPortrayNew,
+    setCatalogItemEditPortrayNew,
+    addCatalogItemEditPortray,
+    removeCatalogItemEditPortray,
+    catalogAdminItemTypes,
+    catalogAdminItemTypeId,
+    catalogAdminItemTypeNew,
+    setCatalogAdminItemTypeId,
+    setCatalogAdminItemTypeNew,
+    createCatalogAdminItemType,
     catalogAdminManufacturerId,
     catalogAdminManufacturerList,
     catalogAdminManufacturerNew,
@@ -14016,6 +14232,15 @@ function App() {
     catalogPublisherOptions,
     setCatalogManufacturerId,
     setCatalogPublisherId,
+    catalogItemTypeId,
+    catalogItemTypeOptions,
+    setCatalogItemTypeId,
+    catalogAvailability,
+    catalogAvailabilityOptions,
+    setCatalogAvailability,
+    catalogPortrayIds,
+    catalogPortrayOptions,
+    setCatalogPortrayIds,
     catalogSetId,
     catalogSetNavIndex,
     catalogSetNavItems,

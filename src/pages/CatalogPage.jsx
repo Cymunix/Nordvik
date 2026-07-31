@@ -75,6 +75,12 @@ export default function CatalogPage({ scope }) {
     catalogAdminRetailPrice,
     catalogAdminSeriesId,
     catalogAdminSeriesList,
+    catalogAdminItemTypes,
+    catalogAdminItemTypeId,
+    catalogAdminItemTypeNew,
+    setCatalogAdminItemTypeId,
+    setCatalogAdminItemTypeNew,
+    createCatalogAdminItemType,
     catalogAdminManufacturerId,
     catalogAdminManufacturerList,
     catalogAdminManufacturerNew,
@@ -146,6 +152,15 @@ export default function CatalogPage({ scope }) {
     catalogPublisherOptions,
     setCatalogManufacturerId,
     setCatalogPublisherId,
+    catalogItemTypeId,
+    catalogItemTypeOptions,
+    setCatalogItemTypeId,
+    catalogAvailability,
+    catalogAvailabilityOptions,
+    setCatalogAvailability,
+    catalogPortrayIds,
+    catalogPortrayOptions,
+    setCatalogPortrayIds,
     catalogSetId,
     catalogSets,
     catalogSidebarLabels,
@@ -353,6 +368,9 @@ export default function CatalogPage({ scope }) {
     setCatalogSeriesId('')
     setCatalogManufacturerId('')
     setCatalogPublisherId('')
+    setCatalogItemTypeId('')
+    setCatalogAvailability('')
+    setCatalogPortrayIds([])
     setCatalogPrintTypeId('')
     setCatalogCardTypeIds([])
     setCatalogSubjectId('')
@@ -374,6 +392,11 @@ export default function CatalogPage({ scope }) {
   if (catalogProductLineId) activeFilterChips.push({ key: 'pl', label: (catalogProductLineOptions.find((o) => o.id === catalogProductLineId)?.name) || 'Product Line', onRemove: () => setCatalogProductLineId('') })
   if (catalogPropertyId) activeFilterChips.push({ key: 'prop', label: (catalogPropertyOptions.find((o) => o.id === catalogPropertyId)?.name) || 'Property', onRemove: () => setCatalogPropertyId('') })
   if (catalogSeriesId) activeFilterChips.push({ key: 'ser', label: (catalogSeriesOptions.find((o) => o.id === catalogSeriesId)?.name) || 'Series', onRemove: () => setCatalogSeriesId('') })
+  if (catalogItemTypeId) activeFilterChips.push({ key: 'itype', label: (catalogItemTypeOptions.find((o) => o.id === catalogItemTypeId)?.name) || 'Item Type', onRemove: () => setCatalogItemTypeId('') })
+  if (catalogAvailability) activeFilterChips.push({ key: 'avail', label: catalogAvailability, onRemove: () => setCatalogAvailability('') })
+  for (const pid of catalogPortrayIds) {
+    activeFilterChips.push({ key: 'portray-' + pid, label: (catalogPortrayOptions.find((o) => o.id === pid)?.name) || 'Portrays', onRemove: () => setCatalogPortrayIds(catalogPortrayIds.filter((x) => x !== pid)) })
+  }
   if (catalogManufacturerId) activeFilterChips.push({ key: 'mfr', label: (catalogManufacturerOptions.find((o) => o.id === catalogManufacturerId)?.name) || 'Manufacturer', onRemove: () => setCatalogManufacturerId('') })
   if (catalogPublisherId) activeFilterChips.push({ key: 'pub', label: (catalogPublisherOptions.find((o) => o.id === catalogPublisherId)?.name) || 'Publisher', onRemove: () => setCatalogPublisherId('') })
   if (catalogSubjectSearch) activeFilterChips.push({ key: 'subj', label: catalogSubjectSearch, onRemove: () => { setCatalogSubjectId(''); setCatalogSubjectSearch(''); setCatalogSubjectResults([]) } })
@@ -887,6 +910,63 @@ export default function CatalogPage({ scope }) {
                       <option value="">All</option>
                       {catalogSeriesOptions.map((s) => (
                         <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </select>
+                  </>
+                )}
+
+                {/* Item Type — cascade level scoped to the selected Subcategory */}
+                {catalogItemTypeOptions.length > 0 && (
+                  <>
+                    <label htmlFor="catalog-item-type">Item Type</label>
+                    <select
+                      id="catalog-item-type"
+                      value={catalogItemTypeId}
+                      onChange={(event) => setCatalogItemTypeId(event.target.value)}
+                    >
+                      <option value="">All</option>
+                      {catalogItemTypeOptions.map((t) => (
+                        <option key={t.id} value={t.id}>{t.name}</option>
+                      ))}
+                    </select>
+                  </>
+                )}
+
+                {/* Portrays (multi-select lookup facet) */}
+                {catalogPortrayOptions.length > 0 && (
+                  <>
+                    <label>Portrays</label>
+                    <div className="catalog-filter-checklist">
+                      {catalogPortrayOptions.map((p) => (
+                        <label key={p.id} className="catalog-filter-check">
+                          <input
+                            type="checkbox"
+                            checked={catalogPortrayIds.includes(p.id)}
+                            onChange={(e) => setCatalogPortrayIds(
+                              e.target.checked
+                                ? [...catalogPortrayIds, p.id]
+                                : catalogPortrayIds.filter((x) => x !== p.id),
+                            )}
+                          />
+                          <span>{p.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {/* Availability */}
+                {catalogAvailabilityOptions.length > 0 && (
+                  <>
+                    <label htmlFor="catalog-availability">Availability</label>
+                    <select
+                      id="catalog-availability"
+                      value={catalogAvailability}
+                      onChange={(event) => setCatalogAvailability(event.target.value)}
+                    >
+                      <option value="">All</option>
+                      {catalogAvailabilityOptions.map((a) => (
+                        <option key={a} value={a}>{a}</option>
                       ))}
                     </select>
                   </>
@@ -2548,6 +2628,21 @@ export default function CatalogPage({ scope }) {
                               {catalogAdminInlineCreate.error && <span className="catalog-admin-inline-error">{catalogAdminInlineCreate.error}</span>}
                             </div>
                           ) : <button type="button" className="catalog-admin-inline-toggle" onClick={() => setCatalogAdminInlineCreate({ field: 'series', value: '', subjectType: 'player' })}>+ New Series</button>)}
+                      </div>
+                      {/* Item Type — cascade level scoped to the Subcategory.
+                          Auto-selects when the subcategory has exactly one type. */}
+                      <div>
+                        <label htmlFor="cai-item-type">Item Type {catalogAdminSubcategoryId ? <span className="catalog-admin-hint">(optional)</span> : <span className="catalog-admin-hint">(select a subcategory first)</span>}</label>
+                        <select id="cai-item-type" value={catalogAdminItemTypeId} onChange={e => setCatalogAdminItemTypeId(e.target.value)} disabled={!catalogAdminSubcategoryId}>
+                          <option value="">None</option>
+                          {catalogAdminItemTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                        </select>
+                        {catalogAdminSubcategoryId && (
+                          <div className="catalog-admin-inline-create">
+                            <input className="catalog-admin-inline-input" placeholder="New item type (e.g. Card, Figure)" value={catalogAdminItemTypeNew} onChange={e => setCatalogAdminItemTypeNew(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); createCatalogAdminItemType() } }} />
+                            <button type="button" className="catalog-admin-inline-save" disabled={!catalogAdminItemTypeNew.trim()} onClick={createCatalogAdminItemType}>Add</button>
+                          </div>
+                        )}
                       </div>
                       {/* Manufacturer (universal) — who produced the item */}
                       <div>
