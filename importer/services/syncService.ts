@@ -19,8 +19,11 @@ interface ExistingItem {
   description: string | null
   card_number: string | null
   brand_id: string | null
+  item_type_id: string | null
   subset_id: string | null
   subject_id: string | null
+  subject: string | null
+  availability: string | null
   rarity_id: string | null
   franchise_id: string | null
   dynamic_fields: Record<string, unknown> | null
@@ -155,6 +158,35 @@ export class SupabaseSync {
     return id
   }
 
+  /** Item Type is a cascade level scoped to the Subcategory (items.item_type_id). */
+  private readonly itemTypeCache = new Map<string, string>()
+  private async resolveItemType(name: string): Promise<string | null> {
+    if (!name) return null
+    const tax = this.requireTax()
+    const key = name.toLowerCase()
+    const hit = this.itemTypeCache.get(key)
+    if (hit) return hit
+    const id = await this.getOrCreate(
+      'item_types', 'item_type_id',
+      { name, subcategory_id: tax.subcategoryId },
+      { name, subcategory_id: tax.subcategoryId },
+    )
+    this.itemTypeCache.set(key, id)
+    return id
+  }
+
+  /** Portrays is a lookup facet so "everything portraying X" is queryable. */
+  private readonly portrayCache = new Map<string, string>()
+  private async resolvePortray(name: string): Promise<string | null> {
+    if (!name?.trim()) return null
+    const key = name.trim().toLowerCase()
+    const hit = this.portrayCache.get(key)
+    if (hit) return hit
+    const id = await this.getOrCreate('portrays', 'portray_id', { name: name.trim() }, { name: name.trim() })
+    this.portrayCache.set(key, id)
+    return id
+  }
+
   private async resolveProperty(name: string): Promise<string | null> {
     if (!name) return null
     const tax = this.requireTax()
@@ -188,7 +220,7 @@ export class SupabaseSync {
     for (let from = 0; ; from += pageSize) {
       const { data, error } = await this.db
         .from('items')
-        .select('item_id, name, description, card_number, brand_id, subset_id, subject_id, rarity_id, franchise_id, dynamic_fields')
+        .select('item_id, name, description, card_number, brand_id, item_type_id, subset_id, subject_id, subject, availability, rarity_id, franchise_id, dynamic_fields')
         .eq('subcategory_id', tax.subcategoryId)
         .range(from, from + pageSize - 1)
       if (error) throw new Error(`load existing failed: ${error.message}`)
@@ -227,12 +259,14 @@ export class SupabaseSync {
     const itemRows: Record<string, unknown>[] = []
     const subjectLinks: Record<string, unknown>[] = []
     const propertyLinks: Record<string, unknown>[] = []
+    const portrayLinks: Record<string, unknown>[] = []
     const imageRows: Record<string, unknown>[] = []
     for (const card of toCreate) {
       const brandId = await this.resolveBrand(card.itemType)
       const rarityId = await this.resolveRarity(card.rarity)
       const propertyId = await this.resolveProperty(card.property)
       const subjectId = await this.resolveSubject(card.subjectName)
+      const itemTypeId = await this.resolveItemType(card.itemType)
       const itemId = newId()
       itemRows.push({
         item_id: itemId,
@@ -242,12 +276,21 @@ export class SupabaseSync {
         franchise_id: tax.franchiseId,
         subset_id: tax.subsetId,
         brand_id: brandId,
+        item_type_id: itemTypeId,
         subject_id: subjectId,
+        // Subject is now also a plain indexed text column on items.
+        subject: card.subjectName || null,
+        availability: card.availability || null,
         rarity_id: rarityId,
         card_number: card.cardNumber || null,
         description: card.description || null,
         dynamic_fields: card.dynamicFields,
       })
+      // Portrays (m2m lookup) — resolve each depicted person once, then link.
+      for (const person of card.portrays || []) {
+        const pid = await this.resolvePortray(person)
+        if (pid) portrayLinks.push({ item_id: itemId, portray_id: pid })
+      }
       if (subjectId) subjectLinks.push({ item_id: itemId, subject_id: subjectId })
       if (propertyId) propertyLinks.push({ item_id: itemId, property_id: propertyId })
       if (card.imageUrl) imageRows.push({ item_id: itemId, image_path: card.imageUrl, position: 0 })
@@ -260,6 +303,7 @@ export class SupabaseSync {
       }
       await this.batchInsert('item_subjects', subjectLinks)
       await this.batchInsert('item_properties', propertyLinks)
+      await this.batchInsert('item_portrays', portrayLinks)
       await this.batchInsert('item_images', imageRows)
     }
 
@@ -291,9 +335,13 @@ export class SupabaseSync {
     const brandId = await this.resolveBrand(card.itemType)
     const rarityId = await this.resolveRarity(card.rarity)
     const subjectId = await this.resolveSubject(card.subjectName)
+    const itemTypeId = await this.resolveItemType(card.itemType)
     const patch: Record<string, unknown> = {}
     const desiredName = card.subjectName || null
     if ((ex.name || null) !== desiredName) patch.name = desiredName
+    if ((ex.item_type_id || null) !== (itemTypeId || null)) patch.item_type_id = itemTypeId
+    if ((ex.subject || null) !== desiredName) patch.subject = desiredName
+    if ((ex.availability || null) !== (card.availability || null)) patch.availability = card.availability || null
     if ((ex.description || null) !== (card.description || null)) patch.description = card.description || null
     if ((ex.card_number || null) !== (card.cardNumber || null)) patch.card_number = card.cardNumber || null
     if ((ex.brand_id || null) !== (brandId || null)) patch.brand_id = brandId

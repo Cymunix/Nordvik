@@ -112,8 +112,12 @@ export interface NordvikCard {
   franchise: string      // "One Piece"
   subfranchise: string   // "The One Piece Card Game"
   property: string       // set_name (e.g. "Romance Dawn")
-  itemType: string       // card_type (Character / Leader / Event / Stage)
-  subjectName: string    // card_name
+  itemType: string       // card_type (Character / Leader / Event / Stage) → item_types (cascade level, scoped to subcategory)
+  subjectName: string    // card_name → items.subject (indexed text column)
+  /** Real people/characters depicted — lookup facet (items ↔ portrays m2m). */
+  portrays?: string[]
+  /** Retired / Available / Preorder … → items.availability */
+  availability?: string | null
   cardNumber: string     // card_set_id (== variantGroup)
   description: string     // card_text
   rarity: string         // rarity code (UC / R / SR …)
