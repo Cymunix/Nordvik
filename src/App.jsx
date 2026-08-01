@@ -10532,9 +10532,10 @@ function App() {
         name:                 catalogAdminSubjectText.trim() || catalogAdminSubjectIds[0]?.name || null,
         category_id:          catalogAdminCategoryId             || null,
         subcategory_id:       catalogAdminSubcategoryId           || null,
-        // Trading Cards: the Subcategory IS the franchise — never store a
-        // separate franchise for this category.
-        franchise_id:         selectedCatalogAdminCategoryName === 'Trading Cards' ? null : (catalogAdminRealFranchiseId || null),
+        // Store the selected Franchise for every category (Trading Cards included)
+        // so franchise-keyed facets work and admin-created cards match imported
+        // ones. (Was forced null for Trading Cards under the old model.)
+        franchise_id:         catalogAdminRealFranchiseId || null,
         brand_id:             catalogAdminBrandId                 || null,
         collectible_set_id:   catalogAdminFranchiseId             || null,
         subcollectble_set_id: catalogAdminSubsetId                || null,
