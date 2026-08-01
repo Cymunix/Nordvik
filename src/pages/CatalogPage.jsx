@@ -1,5 +1,9 @@
 import React from 'react'
 
+// Categories whose Add Item field list is finalized in docs/add-item-form-spec.md.
+// For these, the form is driven strictly by the spec — no legacy/extra fields.
+const SPEC_FINALIZED_CATEGORIES = ['Building Blocks', 'Trading Cards']
+
 export default function CatalogPage({ scope }) {
   const {
     CARD_CONDITION_CATEGORIES,
@@ -2509,25 +2513,10 @@ export default function CatalogPage({ scope }) {
                         ) : <button type="button" className="catalog-admin-inline-toggle" onClick={() => setCatalogAdminInlineCreate({ field: 'franchise', value: '', subjectType: 'player' })}>+ New Franchise</button>}
                       </div>
                       )}
-                      {/* Item Type — non-LEGO keeps it early because "Set" cascades from it.
-                          The LEGO branch renders it after Product Line (taxonomy order). */}
-                      {selectedCatalogAdminCategoryName !== 'Building Blocks' && (
-                      <div>
-                        <label htmlFor="cai-brand">{getCategoryLabels(catalogAdminCategories.find(c => c.id === catalogAdminCategoryId)?.name || '').brand}</label>
-                        <select id="cai-brand" value={catalogAdminBrandId} onChange={e => { setCatalogAdminBrandId(e.target.value); setCatalogAdminFranchiseId(''); setCatalogAdminSubsetId(''); setCatalogAdminPrintTypeId(''); setCatalogAdminPackagingId(''); setCatalogAdminFormError('') }} disabled={!catalogAdminRealFranchiseId}>
-                          <option value="">None</option>
-                          {catalogAdminBrands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                        </select>
-                        {catalogAdminInlineCreate.field === 'brand' ? (
-                          <div className="catalog-admin-inline-create">
-                            <input autoFocus className="catalog-admin-inline-input" placeholder="Brand name" value={catalogAdminInlineCreate.value} onChange={e => setCatalogAdminInlineCreate(v => ({ ...v, value: e.target.value }))} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleCatalogAdminInlineSave() } if (e.key === 'Escape') setCatalogAdminInlineCreate({ field: '', value: '', subjectType: 'player' }) }} />
-                            <button type="button" className="catalog-admin-inline-save" disabled={!catalogAdminInlineCreate.value.trim() || isSavingCatalogAdminInline} onClick={handleCatalogAdminInlineSave}>{isSavingCatalogAdminInline ? '…' : 'Save'}</button>
-                            <button type="button" className="catalog-admin-inline-cancel" onClick={() => setCatalogAdminInlineCreate({ field: '', value: '', subjectType: 'player', error: '' })}>Cancel</button>
-                            {catalogAdminInlineCreate.error && <span className="catalog-admin-inline-error">{catalogAdminInlineCreate.error}</span>}
-                          </div>
-                        ) : <button type="button" className="catalog-admin-inline-toggle" onClick={() => setCatalogAdminInlineCreate({ field: 'brand', value: '', subjectType: 'player' })}>+ New Brand</button>}
-                      </div>
-                      )}
+                      {/* NOTE: the old Brand-as-Item-Type dropdown was removed — Item Type is
+                          its own cascade level (item_types) rendered below. Building Blocks
+                          still needs the Brand selector for Sets/Minifigs structural logic,
+                          which its own branch renders. */}
                       {selectedCatalogAdminCategoryName === 'Building Blocks' ? (
                         <>
                           {/* Subtheme (subset) — depends on Theme (franchise) */}
@@ -2674,8 +2663,11 @@ export default function CatalogPage({ scope }) {
                       )}
                     </div>
 
-                    <p className="catalog-admin-section-title">{getCategoryLabels(catalogAdminCategories.find(c => c.id === catalogAdminCategoryId)?.name || '').subject}</p>
-                    <div className="catalog-admin-two-col">
+                    {/* Legacy Subject(s)/Team section — hidden for categories whose field
+                        spec is finalized, where Subject is a single text field in Attached
+                        Facets (items.subject) and Team is not part of the spec. */}
+                    <p className="catalog-admin-section-title" style={SPEC_FINALIZED_CATEGORIES.includes(selectedCatalogAdminCategoryName) ? { display: 'none' } : undefined}>{getCategoryLabels(catalogAdminCategories.find(c => c.id === catalogAdminCategoryId)?.name || '').subject}</p>
+                    <div className="catalog-admin-two-col" style={SPEC_FINALIZED_CATEGORIES.includes(selectedCatalogAdminCategoryName) ? { display: 'none' } : undefined}>
                       <div>
                         <label>{getCategoryLabels(catalogAdminCategories.find(c => c.id === catalogAdminCategoryId)?.name || '').subject}</label>
                         {catalogAdminSubjectIds.length > 0 && (
