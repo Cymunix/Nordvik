@@ -213,7 +213,29 @@ export default function CatalogItemPage({ scope }) {
     wishlistItemIds
   } = scope
   const [showFullDesc, setShowFullDesc] = React.useState(false)
+  const [showDescModal, setShowDescModal] = React.useState(false)
   const [adminMenuOpen, setAdminMenuOpen] = React.useState(false)
+  // Cap the Abilities card so its bottom never drops below the image column:
+  // measure the media column and constrain the abilities box (scroll if longer).
+  const heroMediaRef = React.useRef(null)
+  const abilitiesRef = React.useRef(null)
+  React.useEffect(() => {
+    const compute = () => {
+      const media = heroMediaRef.current
+      const ab = abilitiesRef.current
+      if (!media || !ab) return
+      const mediaBottom = media.getBoundingClientRect().bottom
+      const abTop = ab.getBoundingClientRect().top
+      const avail = Math.floor(mediaBottom - abTop)
+      if (avail > 40) { ab.style.maxHeight = avail + 'px'; ab.style.overflowY = 'auto' }
+      else { ab.style.maxHeight = ''; ab.style.overflowY = '' }
+    }
+    compute()
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(compute) : null
+    if (ro && heroMediaRef.current) ro.observe(heroMediaRef.current)
+    window.addEventListener('resize', compute)
+    return () => { if (ro) ro.disconnect(); window.removeEventListener('resize', compute) }
+  }, [selectedCatalogItem?.id, catalogRawItemRow])
   // Front image + thumbnails for the hero gallery.
   const heroImageUrlOf = (img) => img
     ? (img.image_path?.startsWith('http') ? img.image_path : supabase.storage.from('item-images').getPublicUrl(img.image_path).data?.publicUrl)
@@ -332,7 +354,7 @@ export default function CatalogItemPage({ scope }) {
               <>
                 <header className="catalog-detail-hero">
                   {/* LEFT — image gallery */}
-                  <div className="catalog-detail-hero-media">
+                  <div className="catalog-detail-hero-media" ref={heroMediaRef}>
                     <div className="catalog-detail-hero-image">
                       {heroFrontUrl
                         ? <img src={heroFrontUrl} alt={selectedCatalogItem.name || 'Catalogue item'} className="catalog-zoomable" onClick={() => openLightbox(heroFrontUrl)} />
@@ -389,10 +411,10 @@ export default function CatalogItemPage({ scope }) {
                     )}
                     {heroDesc && (
                       <div className="catalog-detail-hero-desc">
-                        <p className={showFullDesc ? '' : 'catalog-detail-hero-desc-clamp'}>{heroDesc}</p>
+                        <p className="catalog-detail-hero-desc-clamp">{heroDesc}</p>
                         {heroDesc.length > 110 && (
-                          <button type="button" className="catalog-detail-meta-link" onClick={() => setShowFullDesc((v) => !v)}>
-                            {showFullDesc ? 'Hide description ▲' : 'View full description ▾'}
+                          <button type="button" className="catalog-detail-meta-link" onClick={() => setShowDescModal(true)}>
+                            View full description ▾
                           </button>
                         )}
                       </div>
@@ -405,7 +427,7 @@ export default function CatalogItemPage({ scope }) {
                       const list = Array.isArray(ab) ? ab : (ab ? [ab] : [])
                       if (!list.length) return null
                       return (
-                        <section className="catalog-detail-abilities" aria-label="Abilities">
+                        <section className="catalog-detail-abilities" aria-label="Abilities" ref={abilitiesRef}>
                           <h3 className="catalog-detail-abilities-title">Abilities</h3>
                           <ul className="catalog-detail-abilities-list">
                             {list.map((a, i) => (
@@ -466,6 +488,19 @@ export default function CatalogItemPage({ scope }) {
                     </a>
                   </aside>
                 </header>
+
+                {/* Full description popup — opened from "View full description". */}
+                {showDescModal && (
+                  <div className="catalog-desc-modal-overlay" onClick={() => setShowDescModal(false)}>
+                    <div className="catalog-desc-modal" role="dialog" aria-modal="true" aria-label="Full description" onClick={(e) => e.stopPropagation()}>
+                      <div className="catalog-desc-modal-head">
+                        <span className="catalog-desc-modal-title">Description</span>
+                        <button type="button" className="catalog-desc-modal-close" aria-label="Close" onClick={() => setShowDescModal(false)}>✕</button>
+                      </div>
+                      <p className="catalog-desc-modal-body">{heroDesc}</p>
+                    </div>
+                  </div>
+                )}
 
                 <div className="catalog-detail-tabs" role="tablist" aria-label="Item detail tabs">
                   {(() => {
