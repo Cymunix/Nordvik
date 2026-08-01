@@ -253,3 +253,91 @@
 .catalog-variant-thumb img { width: 100%; height: 100%; object-fit: contain; }
 .catalog-variant-name { font-size: 12.5px; font-weight: 600; color: var(--nv-ink, #e8eef7); line-height: 1.2; }
 .catalog-variant-type { font-size: 11px; color: var(--nv-cyan, #4cc7e6); }
+
+/* ── Admin: Create Item — NORDVIK dark restyle ──────────────────────────────
+   App.css loads AFTER catalog.css, so its light `.catalog-admin-*` rules win at
+   equal specificity. These use a doubled class (or a .catalog-screen ancestor)
+   to outrank them without !important. */
+.catalog-screen .catalog-admin-form,
+.catalog-admin-form.catalog-admin-form {
+  border-top: 1px solid var(--nv-border);
+  color: var(--nv-ink);
+}
+.catalog-screen .catalog-admin-form h3,
+.catalog-admin-form.catalog-admin-form h3 { color: var(--nv-ink); }
+
+/* Section headings ("Cascading Taxonomy", "Card Details", …) */
+.catalog-screen .catalog-admin-section-title,
+.catalog-admin-section-title.catalog-admin-section-title {
+  color: var(--nv-cyan);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  margin: 16px 0 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--nv-border);
+}
+
+/* Field labels + inputs */
+.catalog-screen .catalog-admin-two-col label,
+.catalog-admin-two-col.catalog-admin-two-col label,
+.catalog-screen .catalog-admin-form label { color: var(--nv-ink-dim, #93a4bd); }
+
+.catalog-screen .catalog-admin-two-col input,
+.catalog-screen .catalog-admin-two-col select,
+.catalog-screen .catalog-admin-two-col textarea,
+.catalog-screen .catalog-admin-form input,
+.catalog-screen .catalog-admin-form select,
+.catalog-screen .catalog-admin-form textarea,
+.catalog-admin-two-col.catalog-admin-two-col input,
+.catalog-admin-two-col.catalog-admin-two-col select {
+  background: var(--nv-panel-solid, #131d2b);
+  color: var(--nv-ink);
+  border: 1px solid var(--nv-border);
+  border-radius: 10px;
+}
+.catalog-screen .catalog-admin-form input::placeholder,
+.catalog-screen .catalog-admin-form textarea::placeholder { color: rgba(147, 164, 189, 0.6); }
+.catalog-screen .catalog-admin-form select option { background: var(--nv-panel-solid, #131d2b); color: var(--nv-ink); }
+.catalog-screen .catalog-admin-form input:focus,
+.catalog-screen .catalog-admin-form select:focus,
+.catalog-screen .catalog-admin-form textarea:focus {
+  outline: none;
+  border-color: var(--nv-cyan);
+  box-shadow: 0 0 0 2px rgba(76, 199, 230, 0.18);
+}
+.catalog-screen .catalog-admin-form input:disabled,
+.catalog-screen .catalog-admin-form select:disabled { opacity: 0.5; }
+
+/* Hints, inline-create rows, footer */
+.catalog-screen .catalog-admin-hint,
+.catalog-admin-hint.catalog-admin-hint { color: rgba(147, 164, 189, 0.75); font-weight: 500; }
+.catalog-screen .catalog-admin-inline-create { display: flex; gap: 6px; margin-top: 6px; }
+.catalog-screen .catalog-admin-inline-input {
+  flex: 1 1 auto; background: var(--nv-panel-solid, #131d2b);
+  color: var(--nv-ink); border: 1px solid var(--nv-border); border-radius: 10px; padding: 7px 10px;
+}
+.catalog-screen .catalog-admin-inline-save,
+.catalog-screen .catalog-admin-inline-toggle {
+  background: rgba(76, 199, 230, 0.14); color: var(--nv-cyan);
+  border: 1px solid rgba(76, 199, 230, 0.35); border-radius: 10px;
+  padding: 6px 12px; font-weight: 600; cursor: pointer;
+}
+.catalog-screen .catalog-admin-inline-save:disabled { opacity: 0.45; cursor: default; }
+.catalog-screen .catalog-admin-inline-cancel {
+  background: transparent; color: var(--nv-ink-dim, #93a4bd);
+  border: 1px solid var(--nv-border); border-radius: 10px; padding: 6px 12px; cursor: pointer;
+}
+.catalog-screen .catalog-admin-form-footer,
+.catalog-admin-form-footer.catalog-admin-form-footer {
+  border-top: 1px solid var(--nv-border);
+}
+.catalog-screen .catalog-admin-subject-tag {
+  background: rgba(76, 199, 230, 0.12); color: var(--nv-ink);
+  border: 1px solid rgba(76, 199, 230, 0.3); border-radius: 999px;
+  padding: 3px 10px; display: inline-flex; align-items: center; gap: 6px;
+}
+.catalog-screen .catalog-admin-subject-tag-remove {
+  background: none; border: none; color: var(--nv-ink-dim, #93a4bd); cursor: pointer; font-size: 0.8rem;
+}

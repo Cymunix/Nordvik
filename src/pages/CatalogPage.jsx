@@ -81,6 +81,18 @@ export default function CatalogPage({ scope }) {
     setCatalogAdminItemTypeId,
     setCatalogAdminItemTypeNew,
     createCatalogAdminItemType,
+    catalogAdminAvailability,
+    setCatalogAdminAvailability,
+    catalogAdminCollection,
+    setCatalogAdminCollection,
+    catalogAdminIncludes,
+    setCatalogAdminIncludes,
+    catalogAdminIncludedIn,
+    setCatalogAdminIncludedIn,
+    catalogAdminSubjectText,
+    setCatalogAdminSubjectText,
+    catalogAdminPortraysText,
+    setCatalogAdminPortraysText,
     catalogAdminManufacturerId,
     catalogAdminManufacturerList,
     catalogAdminManufacturerNew,
@@ -2755,9 +2767,39 @@ export default function CatalogPage({ scope }) {
                         <label htmlFor="cai-release-year">Release Year</label>
                         <input id="cai-release-year" type="number" min="1932" max="2100" value={catalogAdminReleaseYear} onChange={e => setCatalogAdminReleaseYear(e.target.value)} placeholder="e.g. 2023" />
                       </div>
+                      {/* Universal spec fields — present for every category. */}
+                      <div>
+                        <label htmlFor="cai-availability">Availability</label>
+                        <input id="cai-availability" type="text" value={catalogAdminAvailability} onChange={e => setCatalogAdminAvailability(e.target.value)} placeholder="e.g. Retired, Available" />
+                      </div>
+                      <div>
+                        <label htmlFor="cai-subject-text">Subject</label>
+                        <input id="cai-subject-text" type="text" value={catalogAdminSubjectText} onChange={e => setCatalogAdminSubjectText(e.target.value)} placeholder="e.g. ATTE, T-Rex" />
+                      </div>
+                      <div>
+                        <label htmlFor="cai-collection">Collection</label>
+                        <input id="cai-collection" type="text" value={catalogAdminCollection} onChange={e => setCatalogAdminCollection(e.target.value)} placeholder="e.g. Ultimate Collector Series" />
+                      </div>
+                      <div>
+                        <label htmlFor="cai-includes">Includes</label>
+                        <input id="cai-includes" type="text" value={catalogAdminIncludes} onChange={e => setCatalogAdminIncludes(e.target.value)} placeholder="e.g. 4 minifigures" />
+                      </div>
+                      <div>
+                        <label htmlFor="cai-included-in">Included In</label>
+                        <input id="cai-included-in" type="text" value={catalogAdminIncludedIn} onChange={e => setCatalogAdminIncludedIn(e.target.value)} placeholder="e.g. Blind Box" />
+                      </div>
+                      {/* Portrays — spec lists it for Building Blocks and Toys. */}
+                      {['Building Blocks', 'Toys'].includes(selectedCatalogAdminCategoryName) && (
+                        <div>
+                          <label htmlFor="cai-portrays">Portrays <span className="catalog-admin-hint">(comma separated)</span></label>
+                          <input id="cai-portrays" type="text" value={catalogAdminPortraysText} onChange={e => setCatalogAdminPortraysText(e.target.value)} placeholder="e.g. Mark Hamill, Luke Skywalker" />
+                        </div>
+                      )}
                     </div>
 
-                    <p className="catalog-admin-section-title">
+                    {/* Category-specific block — only for categories whose spec has
+                        one (Building Blocks set/minifig ids, card categories). */}
+                    <p className="catalog-admin-section-title" style={['Building Blocks', 'Trading Cards', 'Sports Cards'].includes(selectedCatalogAdminCategoryName) ? undefined : { display: 'none' }}>
                       {selectedCatalogAdminCategoryName === 'Building Blocks' ? 'Set / Minifig Details' : 'Card Details'}
                     </p>
                     <div className="catalog-admin-two-col">

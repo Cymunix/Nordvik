@@ -543,23 +543,90 @@ function deriveMinifigShorthand(name) {
   return s.replace(/[^A-Za-z0-9]/g, '').slice(0, 4).toUpperCase() || 'UNKN'
 }
 
+// Per-category EXTRA metadata, matching the NORDVIK category field spec. These
+// are the fields beyond the universal set (Description / Pieces / Retail Price /
+// Release Year / Availability / Barcodes / Includes / Included In), and they
+// persist in items.dynamic_fields (jsonb) — no schema change.
+//
+// Categories whose spec has no extra metadata block (Building Blocks, Toys,
+// Sports Cards) intentionally define none: everything they need is universal.
+// Game-specific card stats live in CATALOG_DYNAMIC_FIELDS_BY_SUBCATEGORY below,
+// so the category level stays the generic "CARD METADATA" from the spec.
 const CATALOG_DYNAMIC_FIELD_DEFINITIONS = {
-  // Shared across EVERY Trading Cards subcategory (Star Wars, One Piece, …). The
-  // Subject, ID Number (card_number), Description, Release Year, Rarity and Card
-  // Image columns map through fixed catalogue fields; Variant Group / Has Variants
-  // are intentionally ignored. Everything else on a card export lives here and
-  // persists in the item's dynamic_fields JSONB — no schema change. A subcategory
-  // needing extra/renamed fields can still override via
-  // CATALOG_DYNAMIC_FIELDS_BY_SUBCATEGORY below.
+  // Spec: CARD METADATA (generic across card games).
   'Trading Cards': [
+    { key: 'evolves_from', label: 'Evolves From', type: 'text', aliases: ['evolve_from', 'evolvesfrom'] },
+    { key: 'evolves_to', label: 'Evolves To', type: 'text', aliases: ['evolve_to', 'evolvesto'] },
+    { key: 'attack', label: 'Attack', type: 'text', aliases: ['attacks'] },
+    { key: 'health', label: 'Health', type: 'text', aliases: ['hp'] },
+    { key: 'type', label: 'Type', type: 'text', aliases: ['types'] },
+    { key: 'abilities', label: 'Abilities', type: 'text', aliases: ['ability', 'effect'] },
+    { key: 'weakness', label: 'Weakness', type: 'text', aliases: ['weaknesses'] },
+    { key: 'resistance', label: 'Resistance', type: 'text', aliases: ['resistances'] },
+    { key: 'artist', label: 'Artist', type: 'text', aliases: ['illustrator'] },
+    { key: 'language', label: 'Language', type: 'text', aliases: ['lanague'] },
+    { key: 'legal', label: 'Legal', type: 'text', aliases: ['legalities', 'legality'] },
+    { key: 'cost', label: 'Cost', type: 'text', aliases: ['card_cost', 'mana_cost'] },
+    { key: 'finish', label: 'Finish', type: 'text', aliases: ['foil', 'variant_type'] },
+  ],
+  // Spec: no extra metadata block — universal fields cover these categories.
+  'Sports Cards': [],
+  'Building Blocks': [],
+  Toys: [],
+  Comics: [
+    { key: 'issue_number', label: 'Issue Number', type: 'text' },
+    { key: 'volume', label: 'Volume', type: 'text' },
+    { key: 'variant_cover', label: 'Variant Cover', type: 'boolean' },
+    { key: 'ratio_variant', label: 'Ratio Variant', type: 'text' },
+  ],
+  // Spec: CONSOLE METADATA.
+  'Video Games': [
+    { key: 'generation', label: 'Generation', type: 'text' },
+    { key: 'predecessor', label: 'Predecessor', type: 'text' },
+    { key: 'successor', label: 'Successor', type: 'text' },
+    { key: 'backward_compatibility', label: 'Backward Compatibility', type: 'text', aliases: ['backwards_compatibility'] },
+  ],
+  // Spec: Music metadata.
+  Music: [
+    { key: 'artists', label: 'Artists', type: 'text', aliases: ['artist'] },
+    { key: 'country', label: 'Country', type: 'text' },
+    { key: 'genre', label: 'Genre', type: 'text' },
+    { key: 'style', label: 'Style', type: 'text' },
+  ],
+  // Spec: Movie metadata (credits).
+  Movies: [
+    { key: 'starring', label: 'Starring', type: 'text', aliases: ['cast', 'actors'] },
+    { key: 'directors', label: 'Directors', type: 'text', aliases: ['director', 'directed_by'] },
+    { key: 'music_by', label: 'Music by', type: 'text', aliases: ['composer', 'music'] },
+    { key: 'screenplay_by', label: 'Screenplay by', type: 'text', aliases: ['screenplay', 'writer'] },
+    { key: 'story_by', label: 'Story by', type: 'text', aliases: ['story'] },
+    { key: 'produced_by', label: 'Produced by', type: 'text', aliases: ['producer', 'producers'] },
+    { key: 'cinematography', label: 'Cinematography', type: 'text' },
+    { key: 'edited_by', label: 'Edited by', type: 'text', aliases: ['editor', 'edited'] },
+    { key: 'production_company', label: 'Production Company', type: 'text', aliases: ['production', 'studio'] },
+    { key: 'country', label: 'Country', type: 'text' },
+  ],
+  // NOTE: the old Building Blocks block (set_number / piece_count / retired /
+  // theme / sealed_open) was removed — the spec has no extra metadata for this
+  // category, and those values now live in real columns (lego_set_number,
+  // piece_count) or the universal Availability field.
+}
+
+// Per-game (subcategory) dynamic-field overrides. A Trading Cards subcategory
+// with its own stat block (e.g. the One Piece Card Game) defines its fields
+// here; they take precedence over the category-level definitions above. All
+// values persist in the item's dynamic_fields JSONB — no schema change.
+// Per-game (subcategory) dynamic-field overrides. The CATEGORY level holds the
+// spec's generic CARD METADATA (Evolves From/To, Attack, Health, Type, Abilities,
+// Weakness, Resistance, Artist, Language, Legal, Cost, Finish). A game with its
+// own stat block overrides it here — these REPLACE the category list for that
+// subcategory, so list every field the game needs.
+const CATALOG_DYNAMIC_FIELDS_BY_SUBCATEGORY = {
+  // The One Piece Card Game — its own stat block (also used by the API importer).
+  'One Piece': [
     { key: 'set_id', label: 'Set ID', type: 'text' },
-    // Variant descriptor (Standard / Parallel / Alternate Art / Manga Rare …).
-    // The base card number stays in items.card_number; cards sharing it within
-    // the same franchise are variants of one group.
     { key: 'variant_type', label: 'Variant Type', type: 'text' },
     { key: 'card_color', label: 'Card Colour', type: 'text', aliases: ['card_color', 'colour', 'color'] },
-    // The card's game type (Leader / Character / Event / Stage; Unit / Pilot; …).
-    // Distinct from the NORDVIK taxonomy "Item Type" — a file may carry both.
     { key: 'card_type', label: 'Card Type', type: 'text' },
     { key: 'attribute', label: 'Attribute', type: 'text' },
     { key: 'card_cost', label: 'Card Cost', type: 'number' },
@@ -568,76 +635,26 @@ const CATALOG_DYNAMIC_FIELD_DEFINITIONS = {
     { key: 'life', label: 'Life', type: 'number' },
     { key: 'sub_types', label: 'Collection', type: 'text', aliases: ['sub_types', 'subtypes'] },
     { key: 'market_price', label: 'Market Price', type: 'number' },
-    // Illustrator is handled via the people credits section
-  ],
-  'Sports Cards': [
-    { key: 'athlete', label: 'Athlete', type: 'text' },
-    { key: 'team', label: 'Team', type: 'text' },
-    { key: 'season', label: 'Season', type: 'text' },
-    { key: 'rookie_card', label: 'Rookie Card', type: 'boolean' },
-    { key: 'autograph', label: 'Autograph', type: 'boolean' },
-    { key: 'patch_relic', label: 'Patch / Relic', type: 'boolean' },
+    { key: 'artist', label: 'Artist', type: 'text', aliases: ['illustrator'] },
     { key: 'language', label: 'Language', type: 'text' },
+    { key: 'finish', label: 'Finish', type: 'text' },
   ],
-  Comics: [
-    { key: 'issue_number', label: 'Issue Number', type: 'text' },
-    { key: 'volume', label: 'Volume', type: 'text' },
-    { key: 'publisher', label: 'Publisher', type: 'text' },
-    { key: 'variant_cover', label: 'Variant Cover', type: 'boolean' },
-    { key: 'ratio_variant', label: 'Ratio Variant', type: 'text' },
-    // Writer, Artist, Cover Artist handled via people credits section
+  // Star Wars (Pocketmodel etc.) — shares the OP-style import columns.
+  'Star Wars': [
+    { key: 'set_id', label: 'Set ID', type: 'text' },
+    { key: 'variant_type', label: 'Variant Type', type: 'text' },
+    { key: 'card_color', label: 'Card Colour', type: 'text', aliases: ['card_color', 'colour', 'color'] },
+    { key: 'card_type', label: 'Card Type', type: 'text' },
+    { key: 'attribute', label: 'Attribute', type: 'text' },
+    { key: 'card_cost', label: 'Card Cost', type: 'number' },
+    { key: 'card_power', label: 'Card Power', type: 'number' },
+    { key: 'counter_amount', label: 'Counter Amount', type: 'number' },
+    { key: 'life', label: 'Life', type: 'number' },
+    { key: 'sub_types', label: 'Collection', type: 'text', aliases: ['sub_types', 'subtypes'] },
+    { key: 'artist', label: 'Artist', type: 'text', aliases: ['illustrator'] },
+    { key: 'language', label: 'Language', type: 'text' },
+    { key: 'finish', label: 'Finish', type: 'text' },
   ],
-  'Video Games': [
-    { key: 'platform', label: 'Platform', type: 'text' },
-    { key: 'publisher', label: 'Publisher', type: 'text' },
-    { key: 'developer', label: 'Developer', type: 'text' },
-    { key: 'region', label: 'Region', type: 'text' },
-    { key: 'physical_digital', label: 'Physical/Digital', type: 'text' },
-    { key: 'edition', label: 'Edition', type: 'text' },
-    { key: 'steelbook', label: 'Steelbook', type: 'boolean' },
-    { key: 'cartridge_disc', label: 'Cartridge/Disc', type: 'text' },
-    { key: 'condition', label: 'Condition', type: 'text' },
-  ],
-  Music: [
-    { key: 'format', label: 'Format', type: 'text' },
-    { key: 'label', label: 'Label', type: 'text' },
-    { key: 'catalogue_number', label: 'Catalogue Number', type: 'text' },
-    { key: 'pressing', label: 'Pressing', type: 'text' },
-    { key: 'colour_variant', label: 'Colour Variant', type: 'text' },
-    { key: 'rpm', label: 'RPM', type: 'number' },
-    { key: 'limited_edition', label: 'Limited Edition', type: 'boolean' },
-    // Artist handled via people credits section
-  ],
-  Movies: [
-    { key: 'format', label: 'Format', type: 'text' },
-    { key: 'studio', label: 'Studio', type: 'text' },
-    { key: 'region_code', label: 'Region Code', type: 'text' },
-    { key: 'steelbook', label: 'Steelbook', type: 'boolean' },
-    { key: 'slipcover', label: 'Slipcover', type: 'boolean' },
-    { key: 'edition', label: 'Edition', type: 'text' },
-    { key: 'runtime_minutes', label: 'Runtime (minutes)', type: 'number' },
-    // Director(s) and Actor(s) handled via people credits section
-  ],
-  'Building Blocks': [
-    { key: 'set_number', label: 'Set Number', type: 'text' },
-    { key: 'piece_count', label: 'Piece Count', type: 'number' },
-    { key: 'retired', label: 'Retired', type: 'boolean' },
-    { key: 'theme', label: 'Theme', type: 'text' },
-    { key: 'sealed_open', label: 'Sealed/Open', type: 'text' },
-    // Brand handled via brand selector; minifigures via minifig section
-  ],
-}
-
-// Per-game (subcategory) dynamic-field overrides. A Trading Cards subcategory
-// with its own stat block (e.g. the One Piece Card Game) defines its fields
-// here; they take precedence over the category-level definitions above. All
-// values persist in the item's dynamic_fields JSONB — no schema change.
-const CATALOG_DYNAMIC_FIELDS_BY_SUBCATEGORY = {
-  // The shared Trading Cards card fields (Set ID, Card Colour, Life, Card Cost,
-  // Card Power, Counter Amount, Attribute, Collection, …) now live at the category
-  // level in CATALOG_DYNAMIC_FIELD_DEFINITIONS['Trading Cards'] and are inherited by
-  // every subcategory. Add an entry here ONLY for a game that needs extra or
-  // renamed fields beyond that shared set.
 }
 // Source columns that are intentionally NOT imported: variant grouping is
 // DERIVED from the shared base card number (items.card_number), so a duplicate
@@ -2163,6 +2180,13 @@ function App() {
   const [catalogAdminSubcategoryId, setCatalogAdminSubcategoryId] = useState('')
   const [catalogAdminFranchiseId, setCatalogAdminFranchiseId] = useState('')
   const [catalogAdminItemDescription, setCatalogAdminItemDescription] = useState('')
+  // Universal spec fields that had no home on the create form.
+  const [catalogAdminAvailability, setCatalogAdminAvailability] = useState('')
+  const [catalogAdminCollection, setCatalogAdminCollection] = useState('')
+  const [catalogAdminIncludes, setCatalogAdminIncludes] = useState('')
+  const [catalogAdminIncludedIn, setCatalogAdminIncludedIn] = useState('')
+  const [catalogAdminSubjectText, setCatalogAdminSubjectText] = useState('')
+  const [catalogAdminPortraysText, setCatalogAdminPortraysText] = useState('')
   const [catalogAdminCardNumber, setCatalogAdminCardNumber] = useState('')
   const [catalogAdminPrintCount, setCatalogAdminPrintCount] = useState('')
   const [catalogAdminRealFranchiseId, setCatalogAdminRealFranchiseId] = useState('')
@@ -10517,6 +10541,9 @@ function App() {
         // Item Type is now its own cascade level; brand_id is still written in
         // parallel (LEGO Sets/Minifigs logic + market_variants depend on it).
         item_type_id:         catalogAdminItemTypeId              || null,
+        // Universal spec fields.
+        availability:         catalogAdminAvailability.trim()     || null,
+        subject:              catalogAdminSubjectText.trim()      || null,
         subject_id:           null,
         description:          catalogAdminItemDescription.trim()  || null,
         bricklink_id:         catalogAdminBricklinkId.trim()      || null,
@@ -10574,6 +10601,22 @@ function App() {
     if (createdItem?.item_id && catalogAdminSubjectIds.length > 0) {
       await supabase.from('items').update({ subject_id: catalogAdminSubjectIds[0].id }).eq('item_id', createdItem.item_id)
       await supabase.from('item_subjects').insert(catalogAdminSubjectIds.map(s => ({ item_id: createdItem.item_id, subject_id: s.id })))
+    }
+    // Portrays (universal facet) — comma/semicolon separated names, resolved to
+    // the portrays lookup (created on demand) and linked m2m.
+    if (createdItem?.item_id && catalogAdminPortraysText.trim()) {
+      const names = catalogAdminPortraysText.split(/[,;]/).map(s => s.trim()).filter(Boolean)
+      const links = []
+      for (const nm of names) {
+        const { data: found } = await supabase.from('portrays').select('portray_id').ilike('name', nm).limit(1).maybeSingle()
+        let pid = found?.portray_id || null
+        if (!pid) {
+          const { data: created } = await supabase.from('portrays').insert({ name: nm }).select('portray_id').single()
+          pid = created?.portray_id || null
+        }
+        if (pid) links.push({ item_id: createdItem.item_id, portray_id: pid })
+      }
+      if (links.length) await supabase.from('item_portrays').insert(links)
     }
     if (createdItem?.item_id && catalogAdminTeamIds.length > 0) {
       await supabase.from('item_teams').insert(catalogAdminTeamIds.map(tid => ({ item_id: createdItem.item_id, team_id: tid })))
@@ -14120,6 +14163,18 @@ function App() {
     setCatalogAdminItemTypeId,
     setCatalogAdminItemTypeNew,
     createCatalogAdminItemType,
+    catalogAdminAvailability,
+    setCatalogAdminAvailability,
+    catalogAdminCollection,
+    setCatalogAdminCollection,
+    catalogAdminIncludes,
+    setCatalogAdminIncludes,
+    catalogAdminIncludedIn,
+    setCatalogAdminIncludedIn,
+    catalogAdminSubjectText,
+    setCatalogAdminSubjectText,
+    catalogAdminPortraysText,
+    setCatalogAdminPortraysText,
     catalogAdminManufacturerId,
     catalogAdminManufacturerList,
     catalogAdminManufacturerNew,
