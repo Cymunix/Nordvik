@@ -397,6 +397,24 @@ export default function CatalogItemPage({ scope }) {
                         )}
                       </div>
                     )}
+                    {/* Abilities — gameplay text surfaced directly under the
+                        description (not buried in Full Information). Rendered as a
+                        NORDVIK information card, one ability per line. */}
+                    {(() => {
+                      const ab = catalogRawItemRow?.dynamic_fields?.abilities
+                      const list = Array.isArray(ab) ? ab : (ab ? [ab] : [])
+                      if (!list.length) return null
+                      return (
+                        <section className="catalog-detail-abilities" aria-label="Abilities">
+                          <h3 className="catalog-detail-abilities-title">Abilities</h3>
+                          <ul className="catalog-detail-abilities-list">
+                            {list.map((a, i) => (
+                              <li key={i}>{(a && typeof a === 'object') ? (a.name || a.text || JSON.stringify(a)) : a}</li>
+                            ))}
+                          </ul>
+                        </section>
+                      )
+                    })()}
                     <CardVariants
                       itemId={selectedCatalogItem.id}
                       cardNumber={selectedCatalogItem._details?.card_number}
@@ -1663,9 +1681,11 @@ export default function CatalogItemPage({ scope }) {
                         // dynamic_fields, so every subset naturally shows only its own
                         // populated properties — no empty One Piece stats on a Star Wars card.
                         const df = catalogRawItemRow?.dynamic_fields
+                        // Abilities is surfaced as its own card above (gameplay text),
+                        // so it must NOT also appear here in Full Information (metadata only).
                         const dynamicRows = (df && typeof df === 'object' && !Array.isArray(df))
                           ? Object.entries(df)
-                              .filter(([key, value]) => hasValue(value) && !existingLabels.has(dynamicFieldLabels[key] || friendlyLabel(key)))
+                              .filter(([key, value]) => key !== 'abilities' && hasValue(value) && !existingLabels.has(dynamicFieldLabels[key] || friendlyLabel(key)))
                               .map(([key, value]) => ({
                                 label: dynamicFieldLabels[key] || friendlyLabel(key),
                                 // Multi-value arrays (Abilities, …) render as a

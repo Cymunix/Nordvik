@@ -339,3 +339,42 @@
   .catalog-detail-screen .catalog-detail-hero { grid-template-columns: 1fr; }
   .catalog-detail-screen .catalog-detail-collection-panel { position: static; }
 }
+
+/* ── Abilities card — gameplay text surfaced under the description.
+      Matches the existing NORDVIK panel style (same tokens as other cards);
+      no new palette, gradients, or components. ── */
+.catalog-detail-screen .catalog-detail-abilities {
+  margin-top: 14px;
+  padding: 14px 16px;
+  background: var(--nv-panel, rgba(23, 34, 50, 0.72));
+  border: 1px solid var(--nv-border, rgba(120, 150, 190, 0.16));
+  border-radius: 12px;
+}
+.catalog-detail-screen .catalog-detail-abilities-title {
+  margin: 0 0 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--nv-cyan, #4cc7e6);
+}
+.catalog-detail-screen .catalog-detail-abilities-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.catalog-detail-screen .catalog-detail-abilities-list li {
+  position: relative;
+  padding-left: 16px;
+  color: var(--nv-ink, #e8eef7);
+  line-height: 1.4;
+}
+.catalog-detail-screen .catalog-detail-abilities-list li::before {
+  content: '•';
+  position: absolute;
+  left: 2px;
+  color: var(--nv-cyan, #4cc7e6);
+}
