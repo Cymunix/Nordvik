@@ -10561,10 +10561,14 @@ function App() {
           collectible_set_id:   catalogAdminPackagingId || null,
           subcollectble_set_id: null,
         } : {
-          print_type_id:    catalogAdminPrintTypeId || null,
           card_number:      catalogAdminCardNumber.trim() || null,
-          print_count:      catalogAdminPrintCount !== '' ? Number(catalogAdminPrintCount) : null,
           rarity_id:        catalogAdminRarityId || null,
+          // Universal Item Metadata (spec) — stored on real columns for cards too.
+          piece_count:      catalogAdminPieceCount !== '' ? Number(catalogAdminPieceCount) : null,
+          retail_price:     catalogAdminRetailPrice !== '' && Number.isFinite(Number(catalogAdminRetailPrice)) ? Number(catalogAdminRetailPrice) : null,
+          upc:              catalogAdminUpc.trim() || null,
+          // Card Metadata (spec) → dynamic_fields jsonb.
+          dynamic_fields:   Object.fromEntries(Object.entries(catalogAdminDynamicFields || {}).filter(([, v]) => v !== '' && v != null)),
           ...(catalogAdminIsMtg ? {
             mtg_card_type_id: catalogAdminMtgCardTypeId || null,
           } : {}),
@@ -14642,6 +14646,8 @@ function App() {
     renewalStatus,
     rollupCards,
     catalogAdminDynamicFieldDefinitions,
+    catalogAdminDynamicFields,
+    setCatalogAdminDynamicFields,
     searchLegoItemsToLink,
     selectedCatalogAdminCategoryName,
     selectedCatalogBulkFranchiseIds,

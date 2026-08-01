@@ -85,6 +85,8 @@ export default function CatalogPage({ scope }) {
     setCatalogAdminItemTypeId,
     setCatalogAdminItemTypeNew,
     createCatalogAdminItemType,
+    catalogAdminDynamicFields,
+    setCatalogAdminDynamicFields,
     catalogAdminAvailability,
     setCatalogAdminAvailability,
     catalogAdminCollection,
@@ -2463,6 +2465,126 @@ export default function CatalogPage({ scope }) {
                     </div>
                   ) : (
                   <form className="catalog-admin-form" onSubmit={e => e.preventDefault()}>
+                  {selectedCatalogAdminCategoryName === 'Trading Cards' ? (
+                    <>
+                      {/* ── Trading Cards — spec-driven form (docs/add-item-form-spec.md) ── */}
+                      <p className="catalog-admin-section-title">Cascading Taxonomy</p>
+                      <div className="catalog-admin-two-col">
+                        <div>
+                          <label>Category</label>
+                          <select value={catalogAdminCategoryId} onChange={e => { setCatalogAdminCategoryId(e.target.value); setCatalogAdminSubcategoryId(''); setCatalogAdminFormError('') }}>
+                            <option value="">Select category…</option>
+                            {catalogAdminCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label>Subcategory</label>
+                          <select value={catalogAdminSubcategoryId} onChange={e => { setCatalogAdminSubcategoryId(e.target.value); setCatalogAdminRealFranchiseId(''); setCatalogAdminFormError('') }} disabled={!catalogAdminCategoryId}>
+                            <option value="">Select subcategory…</option>
+                            {catalogAdminSubcategories.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label>Franchise</label>
+                          <select value={catalogAdminRealFranchiseId} onChange={e => { setCatalogAdminRealFranchiseId(e.target.value); setCatalogAdminSubsetId(''); setCatalogAdminFormError('') }} disabled={!catalogAdminSubcategoryId}>
+                            <option value="">None</option>
+                            {catalogAdminFranchises.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label>Subfranchise</label>
+                          <select value={catalogAdminSubsetId} onChange={e => setCatalogAdminSubsetId(e.target.value)} disabled={!catalogAdminRealFranchiseId}>
+                            <option value="">None</option>
+                            {catalogAdminSubsets.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label>Property</label>
+                          <select value={catalogAdminProductLineIds[0] || ''} onChange={e => setCatalogAdminProductLineIds(e.target.value ? [e.target.value] : [])} disabled={!catalogAdminRealFranchiseId}>
+                            <option value="">None</option>
+                            {catalogAdminProductLinesList.map(pl => <option key={pl.id} value={pl.id}>{pl.name}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label>Item Type</label>
+                          <select value={catalogAdminItemTypeId} onChange={e => setCatalogAdminItemTypeId(e.target.value)} disabled={!catalogAdminSubcategoryId}>
+                            <option value="">None</option>
+                            {catalogAdminItemTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                          </select>
+                          {catalogAdminSubcategoryId && (
+                            <div className="catalog-admin-inline-create">
+                              <input className="catalog-admin-inline-input" placeholder="New item type" value={catalogAdminItemTypeNew} onChange={e => setCatalogAdminItemTypeNew(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); createCatalogAdminItemType() } }} />
+                              <button type="button" className="catalog-admin-inline-save" disabled={!catalogAdminItemTypeNew.trim()} onClick={createCatalogAdminItemType}>Add</button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <p className="catalog-admin-section-title">Attached Facets</p>
+                      <div className="catalog-admin-two-col">
+                        <div><label>Collection</label><input type="text" value={catalogAdminCollection} onChange={e => setCatalogAdminCollection(e.target.value)} placeholder="e.g. Illustration Contest" /></div>
+                        <div><label>Subject</label><input type="text" value={catalogAdminSubjectText} onChange={e => setCatalogAdminSubjectText(e.target.value)} placeholder="e.g. Feraligatr" /></div>
+                        <div><label>ID Number</label><input type="text" value={catalogAdminCardNumber} onChange={e => setCatalogAdminCardNumber(e.target.value)} placeholder="e.g. 213" /></div>
+                        <div>
+                          <label>Publisher</label>
+                          <select value={catalogAdminPublisherId} onChange={e => setCatalogAdminPublisherId(e.target.value)}>
+                            <option value="">None</option>
+                            {catalogAdminPublisherList.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                          </select>
+                          <div className="catalog-admin-inline-create">
+                            <input className="catalog-admin-inline-input" placeholder="New publisher" value={catalogAdminPublisherNew} onChange={e => setCatalogAdminPublisherNew(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); createCatalogAdminPublisher() } }} />
+                            <button type="button" className="catalog-admin-inline-save" disabled={!catalogAdminPublisherNew.trim()} onClick={createCatalogAdminPublisher}>Add</button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <p className="catalog-admin-section-title">Item Metadata</p>
+                      <div className="catalog-admin-two-col">
+                        <div style={{ gridColumn: '1 / -1' }}><label>Description</label><input type="text" value={catalogAdminItemDescription} onChange={e => setCatalogAdminItemDescription(e.target.value)} placeholder="Card text / description" /></div>
+                        <div><label>Pieces</label><input type="number" min="1" value={catalogAdminPieceCount} onChange={e => setCatalogAdminPieceCount(e.target.value)} /></div>
+                        <div><label>Retail Price</label><input type="number" min="0" step="0.01" value={catalogAdminRetailPrice} onChange={e => setCatalogAdminRetailPrice(e.target.value)} placeholder="e.g. 4.99" /></div>
+                        <div><label>Release Year</label><input type="number" min="1900" max="2100" value={catalogAdminReleaseYear} onChange={e => setCatalogAdminReleaseYear(e.target.value)} placeholder="e.g. 2024" /></div>
+                        <div><label>Availability</label><input type="text" value={catalogAdminAvailability} onChange={e => setCatalogAdminAvailability(e.target.value)} placeholder="e.g. Retired" /></div>
+                        <div><label>Barcodes</label><input type="text" value={catalogAdminUpc} onChange={e => setCatalogAdminUpc(e.target.value)} placeholder="e.g. 820650851230" /></div>
+                        <div><label>Includes</label><input type="text" value={catalogAdminIncludes} onChange={e => setCatalogAdminIncludes(e.target.value)} /></div>
+                        <div><label>Included In</label><input type="text" value={catalogAdminIncludedIn} onChange={e => setCatalogAdminIncludedIn(e.target.value)} /></div>
+                        <div>
+                          <label>Rarity</label>
+                          <select value={catalogAdminRarityId} onChange={e => setCatalogAdminRarityId(e.target.value)}>
+                            <option value="">— Select —</option>
+                            {catalogRarities.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                          </select>
+                        </div>
+                      </div>
+
+                      <p className="catalog-admin-section-title">Card Metadata</p>
+                      <div className="catalog-admin-two-col">
+                        {[
+                          ['unit_level', 'Unit Level'], ['evolves_from', 'Evolves From'], ['evolves_to', 'Evolves To'],
+                          ['attack', 'Attack'], ['health', 'Health'], ['damage', 'Damage'], ['shields', 'Shields'],
+                          ['type', 'Type'], ['abilities', 'Abilities'], ['weakness', 'Weakness'], ['resistance', 'Resistance'],
+                          ['artist', 'Artist'], ['language', 'Language'], ['legal', 'Legal'], ['cost', 'Cost'], ['finish', 'Finish'],
+                        ].map(([key, label]) => (
+                          <div key={key}>
+                            <label>{label}</label>
+                            <input type="text" value={catalogAdminDynamicFields[key] || ''} onChange={e => setCatalogAdminDynamicFields(v => ({ ...v, [key]: e.target.value }))} />
+                          </div>
+                        ))}
+                      </div>
+
+                      <p className="catalog-admin-section-title">Images</p>
+                      <div className="catalog-admin-two-col">
+                        <div><label>Front</label><input type="file" accept="image/*" onChange={e => setCatalogAdminFrontImageFile(e.target.files?.[0] || null)} /></div>
+                        <div><label>Back</label><input type="file" accept="image/*" onChange={e => setCatalogAdminBackImageFile(e.target.files?.[0] || null)} /></div>
+                      </div>
+
+                      {catalogAdminFormError && <p className="catalog-admin-error">{catalogAdminFormError}</p>}
+                      <div className="catalog-admin-form-footer">
+                        <button type="button" className="catalog-action-pill catalog-admin-submit" disabled={isCreatingCatalogItem} onClick={() => handleCreateCatalogItemInApp('another')}>{isCreatingCatalogItem ? '…' : '+ Add Another'}</button>
+                        <button type="button" className="catalog-action-pill catalog-admin-submit catalog-admin-submit-finish" disabled={isCreatingCatalogItem} onClick={() => handleCreateCatalogItemInApp('finish')}>{isCreatingCatalogItem ? 'Saving…' : 'Finish'}</button>
+                      </div>
+                    </>
+                  ) : (<>
 
                     <p className="catalog-admin-section-title">Classification</p>
                     <div className="catalog-admin-two-col">
@@ -2925,6 +3047,7 @@ export default function CatalogPage({ scope }) {
                         {isCreatingCatalogItem ? 'Saving…' : 'Finish'}
                       </button>
                     </div>
+                  </>)}
                   </form>
                   )}
                 </section>
