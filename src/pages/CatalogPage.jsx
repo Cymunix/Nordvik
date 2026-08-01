@@ -2509,7 +2509,7 @@ export default function CatalogPage({ scope }) {
                           <label>Franchise</label>
                           <select value={catalogAdminRealFranchiseId} onChange={e => { setCatalogAdminRealFranchiseId(e.target.value); setCatalogAdminSubsetId(''); setCatalogAdminFormError('') }} disabled={!catalogAdminSubcategoryId}>
                             <option value="">None</option>
-                            {catalogAdminFranchises.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                            {catalogAdminRealFranchises.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                           </select>
                           {renderInlineCreate('franchise', 'Franchise', !!catalogAdminSubcategoryId)}
                         </div>
@@ -2665,7 +2665,7 @@ export default function CatalogPage({ scope }) {
                           <label>Franchise</label>
                           <select value={catalogAdminRealFranchiseId} onChange={e => { setCatalogAdminRealFranchiseId(e.target.value); setCatalogAdminSubsetSel(''); setCatalogAdminFormError('') }} disabled={!catalogAdminSubcategoryId}>
                             <option value="">None</option>
-                            {catalogAdminFranchises.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                            {catalogAdminRealFranchises.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                           </select>
                           {renderInlineCreate('franchise', 'Franchise', !!catalogAdminSubcategoryId)}
                         </div>
