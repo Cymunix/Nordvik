@@ -8,6 +8,23 @@ export default function CatalogPage({ scope }) {
   // Draft text for the Abilities chip/tag input (committed chips live in
   // catalogAdminDynamicFields.abilities as a jsonb array).
   const [abilityDraft, setAbilityDraft] = React.useState('')
+
+  // Inline "+ New <level>" create for the spec-driven forms, reusing the shared
+  // catalogAdminInlineCreate mechanism (handler keyed by `field`).
+  const renderInlineCreate = (field, label, enabled = true) => {
+    if (!enabled) return null
+    const ic = scope.catalogAdminInlineCreate
+    return ic.field === field ? (
+      <div className="catalog-admin-inline-create">
+        <input autoFocus className="catalog-admin-inline-input" placeholder={`New ${label}`} value={ic.value} onChange={e => scope.setCatalogAdminInlineCreate(v => ({ ...v, value: e.target.value }))} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); scope.handleCatalogAdminInlineSave() } if (e.key === 'Escape') scope.setCatalogAdminInlineCreate({ field: '', value: '', subjectType: 'player' }) }} />
+        <button type="button" className="catalog-admin-inline-save" disabled={!ic.value.trim() || scope.isSavingCatalogAdminInline} onClick={scope.handleCatalogAdminInlineSave}>{scope.isSavingCatalogAdminInline ? '…' : 'Save'}</button>
+        <button type="button" className="catalog-admin-inline-cancel" onClick={() => scope.setCatalogAdminInlineCreate({ field: '', value: '', subjectType: 'player', error: '' })}>Cancel</button>
+        {ic.error && <span className="catalog-admin-inline-error">{ic.error}</span>}
+      </div>
+    ) : (
+      <button type="button" className="catalog-admin-inline-toggle" onClick={() => scope.setCatalogAdminInlineCreate({ field, value: '', subjectType: 'player' })}>+ New {label}</button>
+    )
+  }
   const {
     CARD_CONDITION_CATEGORIES,
     CatalogAdminPanel,
@@ -2486,6 +2503,7 @@ export default function CatalogPage({ scope }) {
                             <option value="">Select subcategory…</option>
                             {catalogAdminSubcategories.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                           </select>
+                          {renderInlineCreate('subcategory', 'Subcategory', !!catalogAdminCategoryId)}
                         </div>
                         <div>
                           <label>Franchise</label>
@@ -2493,6 +2511,7 @@ export default function CatalogPage({ scope }) {
                             <option value="">None</option>
                             {catalogAdminFranchises.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                           </select>
+                          {renderInlineCreate('franchise', 'Franchise', !!catalogAdminSubcategoryId)}
                         </div>
                         <div>
                           <label>Subfranchise</label>
@@ -2500,6 +2519,7 @@ export default function CatalogPage({ scope }) {
                             <option value="">None</option>
                             {catalogAdminSubsets.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                           </select>
+                          {renderInlineCreate('subset', 'Subfranchise', !!catalogAdminRealFranchiseId)}
                         </div>
                         <div>
                           <label>Property</label>
@@ -2507,6 +2527,7 @@ export default function CatalogPage({ scope }) {
                             <option value="">None</option>
                             {catalogAdminProductLinesList.map(pl => <option key={pl.id} value={pl.id}>{pl.name}</option>)}
                           </select>
+                          {renderInlineCreate('property', 'Property', !!catalogAdminRealFranchiseId)}
                         </div>
                         <div>
                           <label>Item Type</label>
@@ -2638,6 +2659,7 @@ export default function CatalogPage({ scope }) {
                             <option value="">Select subcategory…</option>
                             {catalogAdminSubcategories.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                           </select>
+                          {renderInlineCreate('subcategory', 'Subcategory', !!catalogAdminCategoryId)}
                         </div>
                         <div>
                           <label>Franchise</label>
@@ -2645,6 +2667,7 @@ export default function CatalogPage({ scope }) {
                             <option value="">None</option>
                             {catalogAdminFranchises.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                           </select>
+                          {renderInlineCreate('franchise', 'Franchise', !!catalogAdminSubcategoryId)}
                         </div>
                         <div>
                           <label>Subfranchise</label>
@@ -2652,6 +2675,7 @@ export default function CatalogPage({ scope }) {
                             <option value="">None</option>
                             {catalogAdminSubsetsList.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                           </select>
+                          {renderInlineCreate('subtheme', 'Subfranchise', !!catalogAdminRealFranchiseId)}
                         </div>
                         <div>
                           <label>Property</label>
@@ -2659,6 +2683,7 @@ export default function CatalogPage({ scope }) {
                             <option value="">None</option>
                             {catalogAdminProductLinesList.map(pl => <option key={pl.id} value={pl.id}>{pl.name}</option>)}
                           </select>
+                          {renderInlineCreate('property', 'Property', !!catalogAdminRealFranchiseId)}
                         </div>
                         <div>
                           <label>Item Type</label>
