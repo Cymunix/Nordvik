@@ -5,6 +5,9 @@ import React from 'react'
 const SPEC_FINALIZED_CATEGORIES = ['Building Blocks', 'Trading Cards']
 
 export default function CatalogPage({ scope }) {
+  // Draft text for the Abilities chip/tag input (committed chips live in
+  // catalogAdminDynamicFields.abilities as a jsonb array).
+  const [abilityDraft, setAbilityDraft] = React.useState('')
   const {
     CARD_CONDITION_CATEGORIES,
     CatalogAdminPanel,
@@ -2564,12 +2567,45 @@ export default function CatalogPage({ scope }) {
                           ['attack', 'Attack'], ['health', 'Health'], ['damage', 'Damage'], ['shields', 'Shields'],
                           ['type', 'Type'], ['abilities', 'Abilities'], ['weakness', 'Weakness'], ['resistance', 'Resistance'],
                           ['artist', 'Artist'], ['language', 'Language'], ['legal', 'Legal'], ['cost', 'Cost'], ['finish', 'Finish'],
-                        ].map(([key, label]) => (
-                          <div key={key}>
-                            <label>{label}</label>
-                            <input type="text" value={catalogAdminDynamicFields[key] || ''} onChange={e => setCatalogAdminDynamicFields(v => ({ ...v, [key]: e.target.value }))} />
-                          </div>
-                        ))}
+                        ].map(([key, label]) => {
+                          // Abilities is multi-value → chip/tag input (jsonb array),
+                          // reusing the Subject/Portrays tag pattern.
+                          if (key === 'abilities') {
+                            const raw = catalogAdminDynamicFields.abilities
+                            const chips = Array.isArray(raw) ? raw : (raw ? [raw] : [])
+                            const addAbility = () => {
+                              const t = abilityDraft.trim()
+                              if (!t || chips.some(c => c.toLowerCase() === t.toLowerCase())) { setAbilityDraft(''); return }
+                              setCatalogAdminDynamicFields(v => ({ ...v, abilities: [...chips, t] }))
+                              setAbilityDraft('')
+                            }
+                            return (
+                              <div key={key} style={{ gridColumn: '1 / -1' }}>
+                                <label>{label}</label>
+                                {chips.length > 0 && (
+                                  <div className="catalog-admin-subject-tags">
+                                    {chips.map((c, i) => (
+                                      <span key={i} className="catalog-admin-subject-tag">
+                                        <span style={{ fontWeight: 600 }}>{c}</span>
+                                        <button type="button" className="catalog-admin-subject-tag-remove" onClick={() => setCatalogAdminDynamicFields(v => ({ ...v, abilities: chips.filter((_, j) => j !== i) }))}>✕</button>
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                                <div className="catalog-admin-inline-create">
+                                  <input className="catalog-admin-inline-input" style={{ width: '100%' }} placeholder="Type an ability, press Enter" value={abilityDraft} onChange={e => setAbilityDraft(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addAbility() } }} />
+                                  <button type="button" className="catalog-admin-inline-save" disabled={!abilityDraft.trim()} onClick={addAbility}>Add</button>
+                                </div>
+                              </div>
+                            )
+                          }
+                          return (
+                            <div key={key}>
+                              <label>{label}</label>
+                              <input type="text" value={catalogAdminDynamicFields[key] || ''} onChange={e => setCatalogAdminDynamicFields(v => ({ ...v, [key]: e.target.value }))} />
+                            </div>
+                          )
+                        })}
                       </div>
 
                       <p className="catalog-admin-section-title">Images</p>

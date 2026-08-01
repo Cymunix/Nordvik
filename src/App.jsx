@@ -10568,7 +10568,7 @@ function App() {
           retail_price:     catalogAdminRetailPrice !== '' && Number.isFinite(Number(catalogAdminRetailPrice)) ? Number(catalogAdminRetailPrice) : null,
           upc:              catalogAdminUpc.trim() || null,
           // Card Metadata (spec) → dynamic_fields jsonb.
-          dynamic_fields:   Object.fromEntries(Object.entries(catalogAdminDynamicFields || {}).filter(([, v]) => v !== '' && v != null)),
+          dynamic_fields:   Object.fromEntries(Object.entries(catalogAdminDynamicFields || {}).filter(([, v]) => v !== '' && v != null && !(Array.isArray(v) && v.length === 0))),
           ...(catalogAdminIsMtg ? {
             mtg_card_type_id: catalogAdminMtgCardTypeId || null,
           } : {}),

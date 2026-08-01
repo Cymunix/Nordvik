@@ -1668,7 +1668,11 @@ export default function CatalogItemPage({ scope }) {
                               .filter(([key, value]) => hasValue(value) && !existingLabels.has(dynamicFieldLabels[key] || friendlyLabel(key)))
                               .map(([key, value]) => ({
                                 label: dynamicFieldLabels[key] || friendlyLabel(key),
-                                value: typeof value === 'object' ? JSON.stringify(value) : value,
+                                // Multi-value arrays (Abilities, …) render as a
+                                // comma-joined list of their scalar entries, not JSON.
+                                value: Array.isArray(value)
+                                  ? value.map(v => (v && typeof v === 'object') ? (v.name || v.text || JSON.stringify(v)) : v).join(', ')
+                                  : (typeof value === 'object' ? JSON.stringify(value) : value),
                                 onClick: null,
                               }))
                           : []
