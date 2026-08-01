@@ -553,19 +553,24 @@ function deriveMinifigShorthand(name) {
 // Game-specific card stats live in CATALOG_DYNAMIC_FIELDS_BY_SUBCATEGORY below,
 // so the category level stays the generic "CARD METADATA" from the spec.
 const CATALOG_DYNAMIC_FIELD_DEFINITIONS = {
-  // Spec: CARD METADATA (generic across card games).
+  // Spec: CARD METADATA — universal across card games; a game simply leaves the
+  // ones it doesn't use empty (the UI only renders populated attributes).
+  // NOTE: `legal` is NOT in this list — format legality is multi-value and lives
+  // in the card_format_legality table (one row per legal format), not jsonb.
   'Trading Cards': [
+    { key: 'unit_level', label: 'Unit Level', type: 'text', aliases: ['level'] },
     { key: 'evolves_from', label: 'Evolves From', type: 'text', aliases: ['evolve_from', 'evolvesfrom'] },
     { key: 'evolves_to', label: 'Evolves To', type: 'text', aliases: ['evolve_to', 'evolvesto'] },
-    { key: 'attack', label: 'Attack', type: 'text', aliases: ['attacks'] },
-    { key: 'health', label: 'Health', type: 'text', aliases: ['hp'] },
-    { key: 'type', label: 'Type', type: 'text', aliases: ['types'] },
+    { key: 'attack', label: 'Attack', type: 'text', aliases: ['attacks', 'power', 'card_power'] },
+    { key: 'health', label: 'Health', type: 'text', aliases: ['hp', 'life'] },
+    { key: 'damage', label: 'Damage', type: 'text' },
+    { key: 'shields', label: 'Shields', type: 'text', aliases: ['shield'] },
+    { key: 'type', label: 'Type', type: 'text', aliases: ['types', 'card_type'] },
     { key: 'abilities', label: 'Abilities', type: 'text', aliases: ['ability', 'effect'] },
     { key: 'weakness', label: 'Weakness', type: 'text', aliases: ['weaknesses'] },
     { key: 'resistance', label: 'Resistance', type: 'text', aliases: ['resistances'] },
     { key: 'artist', label: 'Artist', type: 'text', aliases: ['illustrator'] },
     { key: 'language', label: 'Language', type: 'text', aliases: ['lanague'] },
-    { key: 'legal', label: 'Legal', type: 'text', aliases: ['legalities', 'legality'] },
     { key: 'cost', label: 'Cost', type: 'text', aliases: ['card_cost', 'mana_cost'] },
     { key: 'finish', label: 'Finish', type: 'text', aliases: ['foil', 'variant_type'] },
   ],
@@ -622,38 +627,27 @@ const CATALOG_DYNAMIC_FIELD_DEFINITIONS = {
 // own stat block overrides it here — these REPLACE the category list for that
 // subcategory, so list every field the game needs.
 const CATALOG_DYNAMIC_FIELDS_BY_SUBCATEGORY = {
-  // The One Piece Card Game — its own stat block (also used by the API importer).
+  // These EXTEND the category-level universal set (they no longer replace it),
+  // so every TCG shares the same universal card metadata and a game only adds
+  // the attributes that are genuinely unique to it. Universal equivalents are
+  // reached by alias instead of being redefined here:
+  //   card_power → attack · life → health · card_cost → cost
+  //   card_type  → type   · variant_type → finish
   'One Piece': [
-    { key: 'set_id', label: 'Set ID', type: 'text' },
-    { key: 'variant_type', label: 'Variant Type', type: 'text' },
-    { key: 'card_color', label: 'Card Colour', type: 'text', aliases: ['card_color', 'colour', 'color'] },
-    { key: 'card_type', label: 'Card Type', type: 'text' },
+    { key: 'card_color', label: 'Card Colour', type: 'text', aliases: ['colour', 'color'] },
     { key: 'attribute', label: 'Attribute', type: 'text' },
-    { key: 'card_cost', label: 'Card Cost', type: 'number' },
-    { key: 'card_power', label: 'Card Power', type: 'number' },
     { key: 'counter_amount', label: 'Counter Amount', type: 'number' },
-    { key: 'life', label: 'Life', type: 'number' },
-    { key: 'sub_types', label: 'Collection', type: 'text', aliases: ['sub_types', 'subtypes'] },
+    { key: 'set_id', label: 'Set ID', type: 'text' },
+    { key: 'sub_types', label: 'Sub Types', type: 'text', aliases: ['subtypes'] },
     { key: 'market_price', label: 'Market Price', type: 'number' },
-    { key: 'artist', label: 'Artist', type: 'text', aliases: ['illustrator'] },
-    { key: 'language', label: 'Language', type: 'text' },
-    { key: 'finish', label: 'Finish', type: 'text' },
   ],
-  // Star Wars (Pocketmodel etc.) — shares the OP-style import columns.
+  // Star Wars (PocketModel etc.) — same import columns as the OP-style exports.
   'Star Wars': [
-    { key: 'set_id', label: 'Set ID', type: 'text' },
-    { key: 'variant_type', label: 'Variant Type', type: 'text' },
-    { key: 'card_color', label: 'Card Colour', type: 'text', aliases: ['card_color', 'colour', 'color'] },
-    { key: 'card_type', label: 'Card Type', type: 'text' },
+    { key: 'card_color', label: 'Card Colour', type: 'text', aliases: ['colour', 'color'] },
     { key: 'attribute', label: 'Attribute', type: 'text' },
-    { key: 'card_cost', label: 'Card Cost', type: 'number' },
-    { key: 'card_power', label: 'Card Power', type: 'number' },
     { key: 'counter_amount', label: 'Counter Amount', type: 'number' },
-    { key: 'life', label: 'Life', type: 'number' },
-    { key: 'sub_types', label: 'Collection', type: 'text', aliases: ['sub_types', 'subtypes'] },
-    { key: 'artist', label: 'Artist', type: 'text', aliases: ['illustrator'] },
-    { key: 'language', label: 'Language', type: 'text' },
-    { key: 'finish', label: 'Finish', type: 'text' },
+    { key: 'set_id', label: 'Set ID', type: 'text' },
+    { key: 'sub_types', label: 'Sub Types', type: 'text', aliases: ['subtypes'] },
   ],
 }
 // Source columns that are intentionally NOT imported: variant grouping is
@@ -666,12 +660,18 @@ const BULK_IGNORE_HEADERS = new Set([
   'inventory_price', 'date_scraped', 'card_image_id',
 ])
 
-// Resolve the dynamic-field definitions for a category, preferring a
-// subcategory-specific set when one exists.
-const getCatalogDynamicFieldDefs = (categoryName, subcategoryName) =>
-  (subcategoryName && CATALOG_DYNAMIC_FIELDS_BY_SUBCATEGORY[subcategoryName]) ||
-  CATALOG_DYNAMIC_FIELD_DEFINITIONS[categoryName] ||
-  []
+// Resolve the dynamic-field definitions for a category. A subcategory's list
+// EXTENDS the category's universal set rather than replacing it, so every game
+// in a category shares one universal shape and only adds what's unique to it.
+// Fields a game doesn't use simply stay empty (the UI renders only populated
+// attributes). De-duplicated by key, universal first, so ordering stays stable.
+const getCatalogDynamicFieldDefs = (categoryName, subcategoryName) => {
+  const base = CATALOG_DYNAMIC_FIELD_DEFINITIONS[categoryName] || []
+  const extra = (subcategoryName && CATALOG_DYNAMIC_FIELDS_BY_SUBCATEGORY[subcategoryName]) || []
+  if (!extra.length) return base
+  const seen = new Set(base.map((d) => d.key))
+  return [...base, ...extra.filter((d) => !seen.has(d.key))]
+}
 
 // Map a One Piece TCG API (optcgapi) JSON array into the bulk importer's CSV —
 // ONE row per card object, not per text line. Franchise/subcategory/subfranchise
