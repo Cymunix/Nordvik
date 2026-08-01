@@ -503,7 +503,10 @@ export default function CatalogItemPage({ scope }) {
                           ['Category',                    'category_id',          catalogCategories,                false],
                           [editCatLabels.subcategory,     'subcategory_id',       catalogSubcategories,             false],
                           [editCatLabels.franchise,       'franchise_id',         catalogItemEditLookups.franchises, false],
-                          [editCatLabels.brand,           'brand_id',             catalogItemEditLookups.brands,    false],
+                          // Brand kept ONLY for Building Blocks, where Sets/Minifigs drives
+                          // structural logic (minifig codes, packaging, completion). Every
+                          // other category uses the Item Type row below instead.
+                          editIsLego && [editCatLabels.brand, 'brand_id',        catalogItemEditLookups.brands,    false],
                           !editIsMinifig && [editCatLabels.collectibleSet,  'collectible_set_id',   catalogItemEditLookups.sets,      false],
                           editIsLego
                             ? [editCatLabels.subset,      'subset_id',            catalogItemEditLookups.subthemes, false]

@@ -725,30 +725,10 @@ export default function CatalogPage({ scope }) {
                   </>
                 )}
 
-                {/* Brand — filtered to Music franchise brands when Music is selected */}
-                <label htmlFor="catalog-brand">{catalogSidebarLabels.brand}</label>
-                {(() => {
-                  // For Trading Cards the "Game / Franchise" facet sets the SUBCATEGORY,
-                  // not a franchise — so scope the Item Type facet on either. Its options
-                  // (catalogFranchiseLinkedBrands) already load from whichever is selected.
-                  const brandScopeSelected = !!(selectedCatalogFranchiseRecord || selectedCatalogSubcategoryRecord)
-                  const brandPlaceholder = brandScopeSelected
-                    ? 'All'
-                    : (catalogSidebarLabels.hideFranchise ? `Select ${catalogSidebarLabels.subcategory.toLowerCase()} first` : 'Select franchise first')
-                  return (
-                <select
-                  id="catalog-brand"
-                  value={catalogBrandId}
-                  disabled={!brandScopeSelected}
-                  onChange={(event) => setCatalogBrandId(event.target.value)}
-                >
-                  <option value="">{brandPlaceholder}</option>
-                  {catalogFranchiseLinkedBrands.map((b) => (
-                    <option key={b.id} value={b.id}>{b.name}</option>
-                  ))}
-                </select>
-                  )
-                })()}
+                {/* NOTE: the old Brand-as-Item-Type dropdown was removed — Item Type is
+                    now its own cascade level (item_types, scoped to Subcategory) and is
+                    rendered further down. catalogBrandId state remains (unset) because
+                    LEGO Sets/Minifigs logic and market_variants still key off brand_id. */}
 
                 {/* Team — cascades from franchise, only shown when options exist */}
                 {catalogTeams.length > 0 && (
