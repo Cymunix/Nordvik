@@ -9175,13 +9175,13 @@ function App() {
       setCatalogAdminFranchises(prev => [...prev, item].sort((a, b) => a.name.localeCompare(b.name)))
       setCatalogAdminFranchiseId(data.collectible_set_id)
     } else if (field === 'subset') {
-      const { data, error } = await supabase.from('subcollectible_sets').insert({ name, collectible_set_id: catalogAdminFranchiseId }).select('subcollectble_set_id').single()
+      const { data, error } = await supabase.from('subcollectible_sets').insert({ name, collectible_set_id: catalogAdminFranchiseId || null }).select('subcollectble_set_id').single()
       if (error) { fail(error.message); return }
       const item = { id: data.subcollectble_set_id, name }
       setCatalogAdminSubsets(prev => [...prev, item].sort((a, b) => a.name.localeCompare(b.name)))
       setCatalogAdminSubsetId(data.subcollectble_set_id)
     } else if (field === 'subtheme') {
-      const { data, error } = await supabase.from('subsets').insert({ name, franchise_id: catalogAdminRealFranchiseId }).select('subset_id').single()
+      const { data, error } = await supabase.from('subsets').insert({ name, franchise_id: catalogAdminRealFranchiseId || null }).select('subset_id').single()
       if (error) { fail(error.message); return }
       const item = { id: data.subset_id, name }
       setCatalogAdminSubsetsList(prev => [...prev, item].sort((a, b) => a.name.localeCompare(b.name)))
@@ -10527,6 +10527,9 @@ function App() {
     const { data: createdItem, error } = await supabase
       .from('items')
       .insert({
+        // The item's display name comes from Subject (spec forms use the text
+        // field; legacy uses the first subject tag).
+        name:                 catalogAdminSubjectText.trim() || catalogAdminSubjectIds[0]?.name || null,
         category_id:          catalogAdminCategoryId             || null,
         subcategory_id:       catalogAdminSubcategoryId           || null,
         // Trading Cards: the Subcategory IS the franchise — never store a
@@ -10561,6 +10564,9 @@ function App() {
           collectible_set_id:   catalogAdminPackagingId || null,
           subcollectble_set_id: null,
         } : {
+          // Subfranchise for cards → subset_id (subsets table), matching the
+          // importer and the catalogue Subfranchise filter.
+          subset_id:        catalogAdminSubsetSel || null,
           card_number:      catalogAdminCardNumber.trim() || null,
           rarity_id:        catalogAdminRarityId || null,
           // Universal Item Metadata (spec) — stored on real columns for cards too.

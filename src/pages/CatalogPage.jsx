@@ -2515,11 +2515,11 @@ export default function CatalogPage({ scope }) {
                         </div>
                         <div>
                           <label>Subfranchise</label>
-                          <select value={catalogAdminSubsetId} onChange={e => setCatalogAdminSubsetId(e.target.value)} disabled={!catalogAdminRealFranchiseId}>
+                          <select value={catalogAdminSubsetSel} onChange={e => { setCatalogAdminSubsetSel(e.target.value); setCatalogAdminProductLineIds([]) }} disabled={!catalogAdminRealFranchiseId}>
                             <option value="">None</option>
-                            {catalogAdminSubsets.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                            {catalogAdminSubsetsList.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                           </select>
-                          {renderInlineCreate('subset', 'Subfranchise', !!catalogAdminRealFranchiseId)}
+                          {renderInlineCreate('subtheme', 'Subfranchise', !!catalogAdminRealFranchiseId)}
                         </div>
                         <div>
                           <label>Property</label>
