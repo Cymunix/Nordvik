@@ -1907,6 +1907,10 @@ function App() {
   // market_variants still key off it — until that's migrated separately.
   const [catalogItemTypeOptions, setCatalogItemTypeOptions] = useState([])
   const [catalogItemTypeId, setCatalogItemTypeId] = useState('')
+  // "Find items like this" — click a facet on the item page (Ability, Type,
+  // Finish, Rarity, Publisher, Subject) → filter the catalogue to matches.
+  // { kind, value, label }; kind drives which column / dynamic_field is matched.
+  const [catalogAttrFilter, setCatalogAttrFilter] = useState(null)
   // Portrays (lookup facet) + Availability filters.
   const [catalogPortrayOptions, setCatalogPortrayOptions] = useState([])
   const [catalogPortrayIds, setCatalogPortrayIds] = useState([])
@@ -4079,6 +4083,21 @@ function App() {
         const { data } = await supabase.from('items').select('item_id').eq('series_id', catalogSeriesId)
         facetIdLists.push((data || []).map(r => r.item_id))
       }
+      // "Find items like this" attribute filter — matches the clicked facet
+      // (Subject/Publisher/Rarity on real columns; Type/Finish/Ability in the
+      // dynamic_fields jsonb). Pre-query item ids and intersect like the others.
+      if (catalogAttrFilter && catalogAttrFilter.value) {
+        const { kind, value } = catalogAttrFilter
+        let q = supabase.from('items').select('item_id')
+        if (kind === 'subject') q = q.ilike('subject', value)
+        else if (kind === 'publisher') q = q.eq('publisher_id', value)
+        else if (kind === 'rarity') q = q.eq('rarity_id', value)
+        else if (kind === 'type') q = q.eq('dynamic_fields->>type', value)
+        else if (kind === 'finish') q = q.eq('dynamic_fields->>finish', value)
+        else if (kind === 'ability') q = q.contains('dynamic_fields', { abilities: [value] })
+        const { data } = await q.limit(5000)
+        facetIdLists.push((data || []).map(r => r.item_id))
+      }
       // Item Type (items.item_type_id) and Availability (items.availability) —
       // neither is exposed by the item_details view, so pre-query the ids.
       if (catalogItemTypeId) {
@@ -4343,6 +4362,7 @@ function App() {
     catalogItemTypeId,
     catalogAvailability,
     catalogPortrayIds,
+    catalogAttrFilter,
     catalogTeamId,
     currentScreen,
     selectedCatalogCategoryRecord,
@@ -7423,6 +7443,20 @@ function App() {
     setIsUserMenuOpen(false)
     setIsLanguageMenuOpen(false)
     setIsLocationMenuOpen(false)
+  }
+
+  // "Find items like this" — from an item's facet click, jump to the catalogue
+  // filtered to every item sharing that value. Clears other filters so it's a
+  // clean, focused result set.
+  const openCatalogAttrSearch = (kind, value, label) => {
+    if (!value) return
+    setCatalogCategory('all'); setCatalogSubcategory(''); setCatalogFranchise('all')
+    setCatalogMinYear(''); setCatalogMaxYear('')
+    setCatalogAttrFilter({ kind, value, label: label || String(value) })
+    setCatalogPage(1)
+    setSelectedCatalogItem(null)
+    setCurrentScreen('catalog')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const handleSiteSearchChange = (nextValue) => {
@@ -14307,6 +14341,9 @@ function App() {
     catalogPortrayIds,
     catalogPortrayOptions,
     setCatalogPortrayIds,
+    catalogAttrFilter,
+    setCatalogAttrFilter,
+    openCatalogAttrSearch,
     catalogSetId,
     catalogSetNavIndex,
     catalogSetNavItems,

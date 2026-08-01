@@ -60,6 +60,7 @@ export default function CatalogItemPage({ scope }) {
     catalogPricingSource,
     catalogRarities,
     catalogRawItemRow,
+    openCatalogAttrSearch,
     catalogAdminManufacturerList,
     catalogAdminPublisherList,
     catalogItemEditPortrays,
@@ -379,8 +380,8 @@ export default function CatalogItemPage({ scope }) {
                   <div className="catalog-detail-hero-info">
                     <h1 className="catalog-detail-title">
                       {selectedCatalogItemCategoryLabels.hideFranchise
-                        ? (selectedCatalogItem._details?.collectible_set || selectedCatalogItem.name || 'N/A')
-                        : (selectedCatalogItem._details?.subject || selectedCatalogItem.name || 'N/A')}
+                        ? (selectedCatalogItem._details?.collectible_set || catalogRawItemRow?.name || catalogRawItemRow?.subject || selectedCatalogItem.name || 'N/A')
+                        : (catalogRawItemRow?.subject || selectedCatalogItem._details?.subject || catalogRawItemRow?.name || selectedCatalogItem.name || 'N/A')}
                     </h1>
                     {heroBreadcrumb.length > 0 && (
                       <div className="catalog-detail-hero-breadcrumb">
@@ -430,9 +431,14 @@ export default function CatalogItemPage({ scope }) {
                         <section className="catalog-detail-abilities" aria-label="Abilities" ref={abilitiesRef}>
                           <h3 className="catalog-detail-abilities-title">Abilities</h3>
                           <ul className="catalog-detail-abilities-list">
-                            {list.map((a, i) => (
-                              <li key={i}>{(a && typeof a === 'object') ? (a.name || a.text || JSON.stringify(a)) : a}</li>
-                            ))}
+                            {list.map((a, i) => {
+                              const text = (a && typeof a === 'object') ? (a.name || a.text || JSON.stringify(a)) : a
+                              return (
+                                <li key={i}>
+                                  <button type="button" className="catalog-detail-ability-link" onClick={() => openCatalogAttrSearch('ability', text, text)}>{text}</button>
+                                </li>
+                              )
+                            })}
                           </ul>
                         </section>
                       )
@@ -1602,7 +1608,7 @@ export default function CatalogItemPage({ scope }) {
                           { label: 'Brand',         value: d.brand,               onClick: d.brand_id ? () => goTo(() => { setCatalogCategory(d.category || 'all'); setCatalogSubcategory(d.subcategory || ''); setCatalogFranchise(d.franchise_id || d.franchise || 'all'); setCatalogBrandId(d.brand_id) }) : null },
                           // Universal Manufacturer / Publisher (from the raw item row; not in _details).
                           { label: 'Manufacturer',  value: catalogRawItemRow?.manufacturer_name || '', onClick: null },
-                          { label: 'Publisher',     value: catalogRawItemRow?.publisher_name || '',    onClick: null },
+                          { label: 'Publisher',     value: catalogRawItemRow?.publisher_name || '',    onClick: catalogRawItemRow?.publisher_id ? () => openCatalogAttrSearch('publisher', catalogRawItemRow.publisher_id, catalogRawItemRow.publisher_name) : null },
                           // Item Type (cascade level), Availability, and Portrays.
                           { label: 'Item Type',     value: catalogRawItemRow?.item_type_name || '',    onClick: null },
                           { label: 'Availability',  value: catalogRawItemRow?.availability || '',      onClick: null },
@@ -1611,13 +1617,13 @@ export default function CatalogItemPage({ scope }) {
                           { label: 'Release Year',  value: d.release_year ?? 'N/A', onClick: d.release_year ? () => goTo(() => { setCatalogMinYear(String(d.release_year)); setCatalogMaxYear(String(d.release_year)) }) : null },
                           { label: 'Subset',        value: d.subcollectible_set,  onClick: d.subcollectble_set_id ? () => goTo(() => { setCatalogCategory(d.category || 'all'); setCatalogSubcategory(d.subcategory || ''); setCatalogFranchise(d.franchise_id || d.franchise || 'all'); setCatalogBrandId(d.brand_id || ''); setCatalogSetId(d.collectible_set_id || ''); setCatalogSubsetId(d.subcollectble_set_id) }) : null },
                           { label: 'Print Type',    value: d.print_type,          onClick: d.print_type_id ? () => goTo(() => { setCatalogCategory(d.category || 'all'); setCatalogSubcategory(d.subcategory || ''); setCatalogFranchise(d.franchise_id || d.franchise || 'all'); setCatalogBrandId(d.brand_id || ''); setCatalogSetId(d.collectible_set_id || ''); setCatalogSubsetId(d.subcollectble_set_id || ''); setCatalogPrintTypeId(d.print_type_id) }) : null },
-                          { label: 'Subject',       value: d.subject,             onClick: null, subjects: catalogDetailSubjects },
+                          { label: 'Subject',       value: catalogRawItemRow?.subject || d.subject, onClick: (catalogRawItemRow?.subject || d.subject) ? () => openCatalogAttrSearch('subject', catalogRawItemRow?.subject || d.subject, catalogRawItemRow?.subject || d.subject) : null, subjects: catalogDetailSubjects },
                           { label: 'Subject Type',  value: d.subject_type,        onClick: null },
                           { label: 'Species',       value: d.species,             onClick: null },
                           ...(catalogDetailTeams.length ? [{ label: 'Team(s)', value: catalogDetailTeams.join(', '), onClick: null }] : []),
                           ...(catalogDetailCardTypes.length ? [{ label: 'Card Treatment', value: catalogDetailCardTypes.join(', '), onClick: null }] : []),
                           ...(catalogDetailRarityId ? [
-                            { label: 'Rarity', value: catalogRarities.find(r => r.id === catalogDetailRarityId)?.name ?? 'N/A', onClick: null },
+                            { label: 'Rarity', value: catalogRarities.find(r => r.id === catalogDetailRarityId)?.name ?? 'N/A', onClick: () => openCatalogAttrSearch('rarity', catalogDetailRarityId, catalogRarities.find(r => r.id === catalogDetailRarityId)?.name) },
                           ] : []),
                           ...(catalogItemIsMtg ? [
                             { label: 'Type', value: catalogMtgCardTypes.find(t => t.id === catalogDetailMtgCardTypeId)?.name ?? 'N/A', onClick: null },
@@ -1728,7 +1734,10 @@ export default function CatalogItemPage({ scope }) {
                                 value: Array.isArray(value)
                                   ? value.map(v => (v && typeof v === 'object') ? (v.name || v.text || JSON.stringify(v)) : v).join(', ')
                                   : (typeof value === 'object' ? JSON.stringify(value) : value),
-                                onClick: null,
+                                // Type and Finish are clickable → "find items like this".
+                                onClick: (key === 'type' || key === 'finish') && typeof value === 'string' && value.trim()
+                                  ? () => openCatalogAttrSearch(key, value, value)
+                                  : null,
                               }))
                           : []
 

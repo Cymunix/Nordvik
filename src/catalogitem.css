@@ -432,3 +432,19 @@
   line-height: 1.55;
   white-space: pre-wrap;
 }
+
+/* Clickable ability → "find items like this" */
+.catalog-detail-screen .catalog-detail-ability-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--nv-ink, #e8eef7);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  line-height: 1.4;
+}
+.catalog-detail-screen .catalog-detail-ability-link:hover {
+  color: var(--nv-cyan, #4cc7e6);
+  text-decoration: underline;
+}
