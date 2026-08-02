@@ -720,9 +720,9 @@ export default function CatalogItemPage({ scope }) {
                           setDyn('abilities', [...chips, t]); setEditAbilityDraft('')
                         }
                         const fields = [
-                          ['unit_level', 'Unit Level'], ['evolves_from', 'Evolves From'], ['evolves_to', 'Evolves To'],
-                          ['attack', 'Attack'], ['health', 'Health'], ['damage', 'Damage'], ['shields', 'Shields'],
-                          ['type', 'Type'], ['weakness', 'Weakness'], ['resistance', 'Resistance'],
+                          ['evolves_from', 'Evolves From'], ['evolves_to', 'Evolves To'],
+                          ['attack', 'Attack'], ['health', 'Health'], ['type', 'Type'],
+                          ['weakness', 'Weakness'], ['resistance', 'Resistance'],
                           ['artist', 'Artist'], ['language', 'Language'], ['legal', 'Legal'], ['cost', 'Cost'], ['finish', 'Finish'],
                         ]
                         return (

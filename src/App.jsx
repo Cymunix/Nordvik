@@ -558,13 +558,10 @@ const CATALOG_DYNAMIC_FIELD_DEFINITIONS = {
   // NOTE: `legal` is NOT in this list — format legality is multi-value and lives
   // in the card_format_legality table (one row per legal format), not jsonb.
   'Trading Cards': [
-    { key: 'unit_level', label: 'Unit Level', type: 'text', aliases: ['level'] },
     { key: 'evolves_from', label: 'Evolves From', type: 'text', aliases: ['evolve_from', 'evolvesfrom'] },
     { key: 'evolves_to', label: 'Evolves To', type: 'text', aliases: ['evolve_to', 'evolvesto'] },
     { key: 'attack', label: 'Attack', type: 'text', aliases: ['attacks', 'power', 'card_power'] },
     { key: 'health', label: 'Health', type: 'text', aliases: ['hp', 'life'] },
-    { key: 'damage', label: 'Damage', type: 'text' },
-    { key: 'shields', label: 'Shields', type: 'text', aliases: ['shield'] },
     { key: 'type', label: 'Type', type: 'text', aliases: ['types', 'card_type'] },
     { key: 'abilities', label: 'Abilities', type: 'text', aliases: ['ability', 'effect'] },
     { key: 'weakness', label: 'Weakness', type: 'text', aliases: ['weaknesses'] },
@@ -4300,8 +4297,18 @@ function App() {
       }
 
       const na = (v) => (v && v !== 'N/A' ? v : '')
+      // item_details doesn't expose the real items.name / new items.subject text
+      // column, so a hand-created card shows "Unnamed Item". Fetch them for just
+      // this page's ids and prefer them for the display name.
+      const pageIds = (itemsResult.data || []).map(r => r.item_id).filter(Boolean)
+      const realNameById = {}
+      if (pageIds.length) {
+        const { data: nameRows } = await supabase.from('items').select('item_id, name, subject').in('item_id', pageIds)
+        for (const r of (nameRows || [])) realNameById[r.item_id] = { name: na(r.name), subject: na(r.subject) }
+      }
       const normalizeItem = (raw) => {
-        const subjectName   = na(raw.subject)
+        const real          = realNameById[raw.item_id] || {}
+        const subjectName   = real.subject || na(raw.subject)
         const setName       = na(raw.collectible_set)
         const printType     = na(raw.print_type)
         const franchiseName = na(raw.franchise)
@@ -4310,7 +4317,7 @@ function App() {
         const nameParts     = [subjectName, printType, cardNum || null].filter(Boolean)
         return {
           id:                 raw.item_id,
-          name:               nameParts.join(' — ') || raw.description || 'Unnamed Item',
+          name:               real.name || nameParts.join(' — ') || raw.description || 'Unnamed Item',
           description:        raw.description || '',
           release_year:       raw.release_year,
           category_id:        raw.category_id,

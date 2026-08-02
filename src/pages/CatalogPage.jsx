@@ -409,6 +409,7 @@ export default function CatalogPage({ scope }) {
     setCatalogItemTypeId('')
     setCatalogAvailability('')
     setCatalogPortrayIds([])
+    scope.setCatalogAttrFilter(null)
     setCatalogPrintTypeId('')
     setCatalogCardTypeIds([])
     setCatalogSubjectId('')
@@ -430,6 +431,7 @@ export default function CatalogPage({ scope }) {
   if (catalogProductLineId) activeFilterChips.push({ key: 'pl', label: (catalogProductLineOptions.find((o) => o.id === catalogProductLineId)?.name) || 'Product Line', onRemove: () => setCatalogProductLineId('') })
   if (catalogPropertyId) activeFilterChips.push({ key: 'prop', label: (catalogPropertyOptions.find((o) => o.id === catalogPropertyId)?.name) || 'Property', onRemove: () => setCatalogPropertyId('') })
   if (catalogSeriesId) activeFilterChips.push({ key: 'ser', label: (catalogSeriesOptions.find((o) => o.id === catalogSeriesId)?.name) || 'Series', onRemove: () => setCatalogSeriesId('') })
+  if (scope.catalogAttrFilter) activeFilterChips.push({ key: 'attr', label: `${scope.catalogAttrFilter.kind}: ${scope.catalogAttrFilter.label}`, onRemove: () => scope.setCatalogAttrFilter(null) })
   if (catalogItemTypeId) activeFilterChips.push({ key: 'itype', label: (catalogItemTypeOptions.find((o) => o.id === catalogItemTypeId)?.name) || 'Item Type', onRemove: () => setCatalogItemTypeId('') })
   if (catalogAvailability) activeFilterChips.push({ key: 'avail', label: catalogAvailability, onRemove: () => setCatalogAvailability('') })
   for (const pid of catalogPortrayIds) {
@@ -2584,10 +2586,10 @@ export default function CatalogPage({ scope }) {
                       <p className="catalog-admin-section-title">Card Metadata</p>
                       <div className="catalog-admin-two-col">
                         {[
-                          ['unit_level', 'Unit Level'], ['evolves_from', 'Evolves From'], ['evolves_to', 'Evolves To'],
-                          ['attack', 'Attack'], ['health', 'Health'], ['damage', 'Damage'], ['shields', 'Shields'],
-                          ['type', 'Type'], ['abilities', 'Abilities'], ['weakness', 'Weakness'], ['resistance', 'Resistance'],
-                          ['artist', 'Artist'], ['language', 'Language'], ['legal', 'Legal'], ['cost', 'Cost'], ['finish', 'Finish'],
+                          ['evolves_from', 'Evolves From'], ['evolves_to', 'Evolves To'],
+                          ['attack', 'Attack'], ['health', 'Health'], ['type', 'Type'], ['abilities', 'Abilities'],
+                          ['weakness', 'Weakness'], ['resistance', 'Resistance'], ['artist', 'Artist'],
+                          ['language', 'Language'], ['legal', 'Legal'], ['cost', 'Cost'], ['finish', 'Finish'],
                         ].map(([key, label]) => {
                           // Abilities is multi-value → chip/tag input (jsonb array),
                           // reusing the Subject/Portrays tag pattern.
@@ -2627,6 +2629,10 @@ export default function CatalogPage({ scope }) {
                             </div>
                           )
                         })}
+                        <div style={{ gridColumn: '1 / -1' }}>
+                          <label>Portrays <span className="catalog-admin-hint">(comma separated real people)</span></label>
+                          <input type="text" value={catalogAdminPortraysText} onChange={e => setCatalogAdminPortraysText(e.target.value)} placeholder="e.g. Mark Hamill" />
+                        </div>
                       </div>
 
                       <p className="catalog-admin-section-title">Images</p>
