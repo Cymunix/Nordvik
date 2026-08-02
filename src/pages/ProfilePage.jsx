@@ -1,5 +1,6 @@
 import React from 'react'
 import { supabase } from '../lib/supabaseClient'
+import useUnlockedAchievements from '../components/dashboard/useUnlockedAchievements'
 
 /* ── helpers ── */
 const storageImg = (path) =>
@@ -101,6 +102,9 @@ export default function ProfilePage({ scope }) {
     return () => { cancelled = true }
   }, [currentUser?.id])
 
+  // Permanent unlocked-achievement set (once earned, kept — see the hook).
+  const unlockedAchievementIds = useUnlockedAchievements(currentUser?.id, profileStats, PROFILE_ACHIEVEMENTS)
+
   if (!currentUser || !profile) {
     return (
       <section className="nv-profile" aria-label="My Profile">
@@ -132,7 +136,7 @@ export default function ProfilePage({ scope }) {
   })()
 
   const stats = profileStats
-  const unlockedAch = stats ? PROFILE_ACHIEVEMENTS.filter(a => a.check(stats)) : []
+  const unlockedAch = PROFILE_ACHIEVEMENTS.filter(a => unlockedAchievementIds.has(a.id))
   const totalItems = stats?.totalItems ?? 0
   const uniqueItems = stats?.uniqueItems ?? 0
   const totalValue = stats?.totalValue ?? 0
@@ -262,7 +266,7 @@ export default function ProfilePage({ scope }) {
         {full ? (
           <div className="nv-ach-grid">
             {PROFILE_ACHIEVEMENTS.map(a => {
-              const on = stats ? a.check(stats) : false
+              const on = unlockedAchievementIds.has(a.id)
               return (
                 <div key={a.id} className={`nv-ach-card${on ? ' is-on' : ''}`} title={a.desc}>
                   <div className="nv-ach-card-ico">{on ? a.icon : '🔒'}</div>

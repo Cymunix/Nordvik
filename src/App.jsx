@@ -25,6 +25,7 @@ import CartPage from './pages/CartPage'
 import DashboardSidebar from './components/dashboard/DashboardSidebar'
 import { levelInfoFromXp } from './components/dashboard/levels'
 import useCollectorXp from './components/dashboard/useCollectorXp'
+import useUnlockedAchievements from './components/dashboard/useUnlockedAchievements'
 import UnderConstruction from './components/dashboard/UnderConstruction'
 import LevelNotifications from './components/dashboard/LevelNotifications'
 
@@ -14078,8 +14079,18 @@ function App() {
   )
 
   // Real collector XP (see levels.js / useCollectorXp). Hook must run before
-  // any early return to satisfy the rules of hooks.
-  const nvCollectorXp = useCollectorXp(currentUser?.id, ownedCatalogItemCounts)
+  // any early return to satisfy the rules of hooks. Achievements award 1000 XP
+  // each and are permanent (persisted unlocked set), so the count holds even
+  // when profileStats isn't loaded (it only populates on the profile screen).
+  // Wishlist XP (50 each) is driven off the live wishlist count so it updates
+  // the instant an item is wishlisted.
+  const nvUnlockedAchievements = useUnlockedAchievements(currentUser?.id, profileStats, PROFILE_ACHIEVEMENTS)
+  const nvCollectorXp = useCollectorXp(
+    currentUser?.id,
+    ownedCatalogItemCounts,
+    nvUnlockedAchievements.size,
+    wishlistItemIds.size,
+  )
 
   if (posSession) {
     return <StorePOSDashboard session={posSession} onLogout={() => setPosSession(null)} />

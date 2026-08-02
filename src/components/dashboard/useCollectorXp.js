@@ -9,7 +9,7 @@ import { computeCollectorXp, setCompletionMilestoneXp, XP_RULES } from './levels
 // (photos, complete details, event check-ins) contribute 0 until wired.
 const XP_HW_KEY = (userId) => `nv_xp_hw_${userId}`
 
-export default function useCollectorXp(userId, ownedCatalogItemCounts = {}) {
+export default function useCollectorXp(userId, ownedCatalogItemCounts = {}, achievementsUnlocked = 0, wishlistCount = 0) {
   const [asyncXp, setAsyncXp] = useState(0)
   // XP high-water mark: XP is derived from live state, so removing an item
   // would otherwise make it drop. We ratchet it so it can only ever rise —
@@ -31,12 +31,6 @@ export default function useCollectorXp(userId, ownedCatalogItemCounts = {}) {
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId)
         .eq('sale_status', 'sold')
-
-      // Wishlist items (50 XP each).
-      const { count: wishlistCount } = await supabase
-        .from('wishlist_items')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId)
 
       // Set-completion milestones across the user's owned sets.
       const { data: owned } = await supabase
@@ -71,13 +65,17 @@ export default function useCollectorXp(userId, ownedCatalogItemCounts = {}) {
       }))
       if (cancelled) return
 
-      setAsyncXp((salesCount || 0) * 250 + (wishlistCount || 0) * XP_RULES.wishlistItem + milestoneXp)
+      setAsyncXp((salesCount || 0) * 250 + milestoneXp)
     })()
     return () => { cancelled = true }
   }, [userId])
 
   const baseXp = computeCollectorXp({ uniqueItems, duplicates })
-  const liveXp = baseXp + asyncXp
+  const achievementXp = Math.max(0, achievementsUnlocked) * XP_RULES.achievement
+  // Wishlist XP is derived from the app's live wishlist count so it updates the
+  // instant an item is wishlisted (the async block only refreshes per user).
+  const wishlistXp = Math.max(0, wishlistCount) * XP_RULES.wishlistItem
+  const liveXp = baseXp + asyncXp + achievementXp + wishlistXp
 
   // Load the stored high-water mark whenever the user changes.
   useEffect(() => {
