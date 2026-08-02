@@ -386,6 +386,11 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+/* No abilities below → let the description flow into that freed space. */
+.catalog-detail-screen .catalog-detail-hero-desc-clamp.is-roomy {
+  -webkit-line-clamp: 14;
+  line-clamp: 14;
+}
 .catalog-desc-modal-overlay {
   position: fixed;
   inset: 0;

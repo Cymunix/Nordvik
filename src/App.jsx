@@ -2525,7 +2525,18 @@ function App() {
   const metric30Day = formatUsd(selectedCatalogItemMetadata.market_30_day_avg)
   const metricAllTimeHigh = formatUsd(selectedCatalogItemMetadata.market_all_time_high)
   const metricLowListing = formatUsd(selectedCatalogItemMetadata.market_low_listing)
-  const isCardConditionCategory = CARD_CONDITION_CATEGORIES.has(selectedCatalogItem?.categoryName || '')
+  // Resolve the item's category from every available source — depending on how
+  // the item was opened (catalogue click / related-item / variant / search /
+  // freshly created), categoryName may not be set, which previously hid the
+  // Graded/condition controls for real cards. Fall back to the raw item row's
+  // category_id and the item_details category name.
+  const resolvedItemCategoryName =
+    selectedCatalogItem?.categoryName
+    || catalogCategoryById[catalogRawItemRow?.category_id]
+    || catalogCategoryById[selectedCatalogItem?.category_id]
+    || selectedCatalogItem?._details?.category
+    || ''
+  const isCardConditionCategory = CARD_CONDITION_CATEGORIES.has(resolvedItemCategoryName)
   // LEGO condition context: a Building Blocks item is either a set or a minifig.
   const isLegoConditionCategory = (selectedCatalogItem?.categoryName || '') === 'Building Blocks'
   const isLegoMinifig = isLegoConditionCategory && (

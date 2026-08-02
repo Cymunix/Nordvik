@@ -246,6 +246,12 @@ export default function CatalogItemPage({ scope }) {
   const heroImages = catalogItemImages || []
   const heroFrontUrl = heroImageUrlOf(heroImages.find((i) => i.position === 0) || heroImages[0])
   const heroDesc = selectedCatalogItem?._details?.description || selectedCatalogItem?.description || ''
+  // Abilities that sit below the description. When there are none, the
+  // description is allowed to flow into that empty space (more line-clamp)
+  // instead of being cut at two lines.
+  const heroAbilityRaw = catalogRawItemRow?.dynamic_fields?.abilities
+  const heroAbilities = Array.isArray(heroAbilityRaw) ? heroAbilityRaw : (heroAbilityRaw ? [heroAbilityRaw] : [])
+  const hasHeroAbilities = heroAbilities.length > 0
   const heroTags = [...new Set([
     selectedCatalogItem?._details?.category,
     selectedCatalogItem?._details?.subcategory,
@@ -414,7 +420,7 @@ export default function CatalogItemPage({ scope }) {
                     )}
                     {heroDesc && (
                       <div className="catalog-detail-hero-desc">
-                        <p className="catalog-detail-hero-desc-clamp">{heroDesc}</p>
+                        <p className={`catalog-detail-hero-desc-clamp${hasHeroAbilities ? '' : ' is-roomy'}`}>{heroDesc}</p>
                         {heroDesc.length > 110 && (
                           <button type="button" className="catalog-detail-meta-link" onClick={() => setShowDescModal(true)}>
                             View full description ▾
@@ -426,8 +432,7 @@ export default function CatalogItemPage({ scope }) {
                         description (not buried in Full Information). Rendered as a
                         NORDVIK information card, one ability per line. */}
                     {(() => {
-                      const ab = catalogRawItemRow?.dynamic_fields?.abilities
-                      const list = Array.isArray(ab) ? ab : (ab ? [ab] : [])
+                      const list = heroAbilities
                       if (!list.length) return null
                       return (
                         <section className="catalog-detail-abilities" aria-label="Abilities" ref={abilitiesRef}>

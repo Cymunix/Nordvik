@@ -99,8 +99,13 @@ export default function CompletionPage({
       { key: 'series', label: 'Series', fields: ['print_type', 'series'] },
     ],
     'Trading Cards': [
-      // Subcategory IS the franchise for Trading Cards — no separate franchise level.
+      // Subcategory is usually the game (Marvel, One Piece, …). For most card games
+      // the Franchise just echoes the Subcategory, so the Franchise level below is
+      // suppressed automatically (see the franchise guard in nextLevel). But some
+      // subcategories DO carry a meaningful Franchise (e.g. Disney → Pirates of the
+      // Caribbean), so we keep the level and only hide it when it adds nothing.
       { key: 'subcategory', label: 'Game / Franchise', fields: ['subcategory'] },
+      { key: 'franchise', label: 'Franchise', fields: ['franchise'] },
       // The SET (e.g. One Piece "Romance Dawn") is the natural completion unit; it
       // lives in the Property field (item_properties). This is the key drill.
       { key: 'property', label: 'Set', fields: ['property'] },
@@ -268,12 +273,19 @@ export default function CompletionPage({
   const currentFranchise = path.find(p => p.type === 'franchise')?.value || ''
   const config = configs[currentCategory] || []
   const usedKeys = new Set(path.filter(p => p.type === 'level').map(p => p.key))
+  const selectedSubcategory = path.find(p => p.key === 'subcategory')?.value || ''
   const nextLevel = config.find(level => {
     if (usedKeys.has(level.key)) return false
     // In Franchise Explorer the franchise is already fixed by the branch.
     if (explorerMode === 'franchise' && level.key === 'franchise') return false
     const values = new Set(scoped.map(r => firstValue(r, level.fields)).filter(Boolean))
-    return values.size > 0
+    if (values.size === 0) return false
+    // Suppress a Franchise level that only echoes the already-chosen Subcategory
+    // (true for most card games, e.g. Marvel → Marvel) so it isn't a redundant
+    // drill step. Keep it the moment it introduces any distinct value — that's
+    // what surfaces Disney → Pirates of the Caribbean instead of skipping it.
+    if (level.key === 'franchise' && selectedSubcategory && [...values].every(v => v === selectedSubcategory)) return false
+    return true
   })
 
   const rollup = list => {
