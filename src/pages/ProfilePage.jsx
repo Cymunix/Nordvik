@@ -1,10 +1,7 @@
 import React from 'react'
+import { supabase } from '../lib/supabaseClient'
 
 /* ── helpers ── */
-const COLLECTION_MILESTONES = [10, 50, 100, 500, 1000, 5000]
-const WISHLIST_MILESTONES = [10, 25, 50, 100, 250]
-const nextMilestone = (value, list) => list.find(m => m > value) || (list[list.length - 1] || 1)
-
 const storageImg = (path) =>
   path
     ? (path.startsWith('http')
@@ -48,6 +45,50 @@ export default function ProfilePage({ scope }) {
 
   const [activeTab, setActiveTab] = React.useState('overview')
   const favStripRef = React.useRef(null)
+  // Catalogue-wide item total — denominator for the "how much of everything do
+  // I have" bars.
+  const [catalogItemTotal, setCatalogItemTotal] = React.useState(0)
+  React.useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      const { count } = await supabase.from('items').select('item_id', { count: 'exact', head: true })
+      if (!cancelled) setCatalogItemTotal(count || 0)
+    })().catch(() => { /* leave at 0 → bars show the raw count */ })
+    return () => { cancelled = true }
+  }, [])
+
+  // Sets = what the Completion feature tracks: a "Set" is a Property (the group
+  // an item appears in — item_properties), NOT the sparse legacy collectible_sets
+  // table. A set is "completed" when the user owns every catalogue item in it.
+  const [setStats, setSetStats] = React.useState({ completed: 0, total: 0 })
+  React.useEffect(() => {
+    if (!currentUser?.id) { setSetStats({ completed: 0, total: 0 }); return }
+    let cancelled = false
+    ;(async () => {
+      const { data: owned } = await supabase
+        .from('owned_copies').select('catalog_item_id').eq('user_id', currentUser.id)
+      const ownedSet = new Set((owned || []).map(r => r.catalog_item_id).filter(Boolean))
+
+      const totalByProp = new Map()
+      const ownedByProp = new Map()
+      for (let from = 0; ; from += 1000) {
+        const { data, error } = await supabase
+          .from('item_properties').select('item_id, property_id').range(from, from + 999)
+        if (error || !data || !data.length) break
+        for (const row of data) {
+          totalByProp.set(row.property_id, (totalByProp.get(row.property_id) || 0) + 1)
+          if (ownedSet.has(row.item_id)) ownedByProp.set(row.property_id, (ownedByProp.get(row.property_id) || 0) + 1)
+        }
+        if (data.length < 1000) break
+      }
+      let completed = 0
+      for (const [pid, total] of totalByProp) {
+        if (total > 0 && (ownedByProp.get(pid) || 0) >= total) completed += 1
+      }
+      if (!cancelled) setSetStats({ completed, total: totalByProp.size })
+    })().catch(() => { /* leave at 0 */ })
+    return () => { cancelled = true }
+  }, [currentUser?.id])
 
   if (!currentUser || !profile) {
     return (
@@ -87,8 +128,7 @@ export default function ProfilePage({ scope }) {
   const wishlistCount = stats?.wishlistCount ?? 0
   const categoryBreakdown = stats?.categoryBreakdown || []
   const collectionsCount = categoryBreakdown.length
-  // Sets-completed is not tracked in the data model yet — surface 0 honestly.
-  const setsCompleted = 0
+  const setsCompleted = setStats.completed
 
   const catName = (catId) => catalogCategories.find(c => c.id === catId)?.name || 'Unknown'
   const goto = (screen) => () => setCurrentScreen(screen)
@@ -106,10 +146,11 @@ export default function ProfilePage({ scope }) {
     { val: `${unlockedAch.length} / ${PROFILE_ACHIEVEMENTS.length}`, lbl: 'Achievements' },
   ]
 
+  // Real overview: each row is "what you have" out of "what exists".
   const overviewRows = [
-    { key: 'items', label: 'Items Owned', value: totalItems, target: nextMilestone(totalItems, COLLECTION_MILESTONES), fill: 'items' },
-    { key: 'sets', label: 'Sets Completed', value: setsCompleted, target: 0, fill: 'sets' },
-    { key: 'wish', label: 'Wishlist Items', value: wishlistCount, target: nextMilestone(wishlistCount, WISHLIST_MILESTONES), fill: 'wish' },
+    { key: 'items', label: 'Items Owned', value: uniqueItems, target: catalogItemTotal, fill: 'items' },
+    { key: 'sets', label: 'Sets Completed', value: setsCompleted, target: setStats.total, fill: 'sets' },
+    { key: 'wish', label: 'Wishlist Items', value: wishlistCount, target: catalogItemTotal, fill: 'wish' },
     { key: 'ach', label: 'Achievements', value: unlockedAch.length, target: PROFILE_ACHIEVEMENTS.length, fill: 'ach' },
   ]
 
