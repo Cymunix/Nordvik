@@ -1,5 +1,6 @@
 import React from 'react'
 import CardVariants from '../components/dashboard/CardVariants'
+import { addToWishlistCascade } from '../lib/wishlist'
 
 export default function CatalogItemPage({ scope }) {
   const {
@@ -273,7 +274,8 @@ export default function CatalogItemPage({ scope }) {
       await supabase.from('wishlist_items').delete().eq('user_id', currentUser.id).eq('catalog_item_id', itemId)
     } else {
       setWishlistItemIds((prev) => new Set([...prev, itemId]))
-      await supabase.from('wishlist_items').upsert({ user_id: currentUser.id, catalog_item_id: itemId }, { onConflict: 'user_id,catalog_item_id', ignoreDuplicates: true })
+      const addedIds = await addToWishlistCascade(supabase, currentUser.id, itemId)
+      if (addedIds.length > 1) setWishlistItemIds((prev) => new Set([...prev, ...addedIds]))
     }
   }
   const heroAddToCollection = () => (quickAddMode ? performQuickAdd(selectedCatalogItem) : handleOpenAddToCollectionModal(selectedCatalogItem?.id))

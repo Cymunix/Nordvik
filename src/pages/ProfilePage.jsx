@@ -61,13 +61,24 @@ export default function ProfilePage({ scope }) {
   // an item appears in — item_properties), NOT the sparse legacy collectible_sets
   // table. A set is "completed" when the user owns every catalogue item in it.
   const [setStats, setSetStats] = React.useState({ completed: 0, total: 0 })
+  // Wishlist as a "still-chasing" metric: how many items you've wishlisted but
+  // DON'T already own, out of the items you don't own yet.
+  const [wishlistNotOwned, setWishlistNotOwned] = React.useState(0)
   React.useEffect(() => {
-    if (!currentUser?.id) { setSetStats({ completed: 0, total: 0 }); return }
+    if (!currentUser?.id) { setSetStats({ completed: 0, total: 0 }); setWishlistNotOwned(0); return }
     let cancelled = false
     ;(async () => {
       const { data: owned } = await supabase
         .from('owned_copies').select('catalog_item_id').eq('user_id', currentUser.id)
       const ownedSet = new Set((owned || []).map(r => r.catalog_item_id).filter(Boolean))
+
+      // Wishlisted items the user doesn't already own.
+      const { data: wish } = await supabase
+        .from('wishlist_items').select('catalog_item_id').eq('user_id', currentUser.id)
+      const wishNotOwned = (wish || [])
+        .map(r => r.catalog_item_id)
+        .filter(id => id && !ownedSet.has(id))
+      if (!cancelled) setWishlistNotOwned(new Set(wishNotOwned).size)
 
       const totalByProp = new Map()
       const ownedByProp = new Map()
@@ -150,7 +161,7 @@ export default function ProfilePage({ scope }) {
   const overviewRows = [
     { key: 'items', label: 'Items Owned', value: uniqueItems, target: catalogItemTotal, fill: 'items' },
     { key: 'sets', label: 'Sets Completed', value: setsCompleted, target: setStats.total, fill: 'sets' },
-    { key: 'wish', label: 'Wishlist Items', value: wishlistCount, target: catalogItemTotal, fill: 'wish' },
+    { key: 'wish', label: 'Wishlist Items', value: wishlistNotOwned, target: Math.max(0, catalogItemTotal - uniqueItems), fill: 'wish' },
     { key: 'ach', label: 'Achievements', value: unlockedAch.length, target: PROFILE_ACHIEVEMENTS.length, fill: 'ach' },
   ]
 

@@ -1,4 +1,5 @@
 import React from 'react'
+import { addToWishlistCascade } from '../lib/wishlist'
 
 // Categories whose Add Item field list is finalized in docs/add-item-form-spec.md.
 // For these, the form is driven strictly by the spec — no legacy/extra fields.
@@ -380,7 +381,8 @@ export default function CatalogPage({ scope }) {
       if (isOn) {
         await supabase.from('wishlist_items').delete().eq('user_id', currentUser.id).eq('catalog_item_id', itemId)
       } else {
-        await supabase.from('wishlist_items').upsert({ user_id: currentUser.id, catalog_item_id: itemId }, { onConflict: 'user_id,catalog_item_id', ignoreDuplicates: true })
+        const addedIds = await addToWishlistCascade(supabase, currentUser.id, itemId)
+        if (addedIds.length > 1) setWishlistItemIds((prev) => new Set([...prev, ...addedIds]))
       }
     } catch {
       // Revert optimistic change on failure.
@@ -1362,7 +1364,8 @@ export default function CatalogPage({ scope }) {
                               setCatalogListStats((prev) => { const s = prev[item.id]; return s ? { ...prev, [item.id]: { ...s, wanted_count: Math.max(0, Number(s.wanted_count) - 1) } } : prev })
                             } else {
                               setWishlistItemIds((prev) => new Set([...prev, item.id]))
-                              await supabase.from('wishlist_items').upsert({ user_id: currentUser.id, catalog_item_id: item.id }, { onConflict: 'user_id,catalog_item_id', ignoreDuplicates: true })
+                              const addedIds = await addToWishlistCascade(supabase, currentUser.id, item.id)
+                              if (addedIds.length > 1) setWishlistItemIds((prev) => new Set([...prev, ...addedIds]))
                               setCatalogListStats((prev) => { const s = prev[item.id]; return s ? { ...prev, [item.id]: { ...s, wanted_count: Number(s.wanted_count) + 1 } } : prev })
                             }
                           }
