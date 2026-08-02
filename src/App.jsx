@@ -184,18 +184,19 @@ const CATEGORY_LABEL_OVERRIDES = {
     property: 'Property',
     subject: 'Subject(s)',
   },
-  // Trading Cards: the Subcategory IS the franchise (Pokémon, One Piece, …).
-  // There is no separate franchise classification for this category.
+  // Trading Cards use the full cascade, matching how items are saved:
+  // Category → Subcategory (the game) → Franchise → Subfranchise → Property →
+  // Item Type. Labels here must match those field names so the sidebar filters
+  // line up with the saved data.
   'Trading Cards': {
-    subcategory: 'Game / Franchise',
+    subcategory: 'Subcategory',
     franchise: 'Franchise',
     brand: 'Item Type',
     collectibleSet: 'Set',
-    subset: 'Subset',
+    subset: 'Subfranchise',
     productLine: 'Product Line',
     property: 'Property',
-    subject: 'Subject(s)',
-    hideFranchise: true,
+    subject: 'Subject',
   },
 }
 const DEFAULT_CATEGORY_LABELS = {
