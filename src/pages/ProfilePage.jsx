@@ -1,11 +1,26 @@
 import React from 'react'
 
+/* ── helpers ── */
+const COLLECTION_MILESTONES = [10, 50, 100, 500, 1000, 5000]
+const WISHLIST_MILESTONES = [10, 25, 50, 100, 250]
+const nextMilestone = (value, list) => list.find(m => m > value) || (list[list.length - 1] || 1)
+
+const storageImg = (path) =>
+  path
+    ? (path.startsWith('http')
+        ? path
+        : `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/item-images/${path}`)
+    : null
+
+const itemLabel = (item) =>
+  [item.subject, item.print_type, item.card_number ? `#${item.card_number}` : null].filter(Boolean).join(' — ')
+  || item.collectible_set || 'Item'
+
 export default function ProfilePage({ scope }) {
   const {
     PROFILE_ACHIEVEMENTS,
     catalogCategories,
     currentUser,
-    email,
     friendSearchLoading,
     friendSearchQuery,
     friendSearchResults,
@@ -25,276 +40,381 @@ export default function ProfilePage({ scope }) {
     profileRecentItems,
     profileSentToIds,
     profileStats,
+    setCurrentScreen,
     setFriendSearchQuery,
     setFriendSearchResults,
-    setIsFriendSearchOpen
+    setIsFriendSearchOpen,
   } = scope
-  return (
-          <section className="profile-screen" aria-label="My Profile">
-            {!currentUser || !profile ? (
-              <div className="profile-empty-state">
-                <p className="subtitle">Sign in to view your profile.</p>
-                <button type="button" className="auth-submit" onClick={() => openAuth('signin')}>Log in</button>
-              </div>
-            ) : (
-              <div className="profile-layout">
-                {/* Hero banner */}
-                <div className="profile-hero-banner" />
 
-                {/* Identity card — overlaps banner */}
-                <div className="profile-identity-card">
-                  <div className="profile-avatar-outer">
-                    {profile.avatar_url
-                      ? <img src={profile.avatar_url} alt="avatar" className="profile-avatar" />
-                      : <div className="profile-avatar profile-avatar--placeholder">{(profile.display_name || currentUser.email || '?')[0].toUpperCase()}</div>
-                    }
-                  </div>
-                  <div className="profile-identity-body">
-                    <div>
-                      <h1 className="profile-username">{profile.display_name || currentUser.email?.split('@')[0] || 'Collector'}</h1>
-                    </div>
-                    <span className="profile-tier-pill">{profile.subscription_tier ? profile.subscription_tier.replace(/_/g, ' ') : 'Free Collector'}</span>
-                  </div>
+  const [activeTab, setActiveTab] = React.useState('overview')
+  const favStripRef = React.useRef(null)
+
+  if (!currentUser || !profile) {
+    return (
+      <section className="nv-profile" aria-label="My Profile">
+        <div className="nv-profile-empty">
+          <p className="subtitle">Sign in to view your profile.</p>
+          <button type="button" className="auth-submit" onClick={() => openAuth('signin')}>Log in</button>
+        </div>
+      </section>
+    )
+  }
+
+  const displayName = profile.display_name || currentUser.email?.split('@')[0] || 'Collector'
+  const tierLabel = profile.subscription_tier
+    ? profile.subscription_tier.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+    : 'Collector'
+  const avatarInitial = (displayName || '?')[0].toUpperCase()
+
+  const joinDate = currentUser.created_at ? new Date(currentUser.created_at) : null
+  const joinLabel = joinDate
+    ? joinDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+    : null
+  const joinedAgo = (() => {
+    if (!joinDate) return null
+    const months = Math.max(0, Math.round((Date.now() - joinDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44)))
+    if (months < 1) return 'Joined recently'
+    if (months < 12) return `Joined ${months} month${months === 1 ? '' : 's'} ago`
+    const years = Math.floor(months / 12)
+    return `Joined ${years} year${years === 1 ? '' : 's'} ago`
+  })()
+
+  const stats = profileStats
+  const unlockedAch = stats ? PROFILE_ACHIEVEMENTS.filter(a => a.check(stats)) : []
+  const totalItems = stats?.totalItems ?? 0
+  const uniqueItems = stats?.uniqueItems ?? 0
+  const totalValue = stats?.totalValue ?? 0
+  const wishlistCount = stats?.wishlistCount ?? 0
+  const categoryBreakdown = stats?.categoryBreakdown || []
+  const collectionsCount = categoryBreakdown.length
+  // Sets-completed is not tracked in the data model yet — surface 0 honestly.
+  const setsCompleted = 0
+
+  const catName = (catId) => catalogCategories.find(c => c.id === catId)?.name || 'Unknown'
+  const goto = (screen) => () => setCurrentScreen(screen)
+
+  const favItems = (profileMostValuable?.length ? profileMostValuable : profileRecentItems || []).slice(0, 12)
+  const scrollFav = (dir) => () => {
+    const el = favStripRef.current
+    if (el) el.scrollBy({ left: dir * (el.clientWidth * 0.8), behavior: 'smooth' })
+  }
+
+  const headerStats = [
+    { val: collectionsCount.toLocaleString(), lbl: 'Collections' },
+    { val: setsCompleted.toLocaleString(), lbl: 'Sets Completed' },
+    { val: `$${totalValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, lbl: 'Collection Value' },
+    { val: `${unlockedAch.length} / ${PROFILE_ACHIEVEMENTS.length}`, lbl: 'Achievements' },
+  ]
+
+  const overviewRows = [
+    { key: 'items', label: 'Items Owned', value: totalItems, target: nextMilestone(totalItems, COLLECTION_MILESTONES), fill: 'items' },
+    { key: 'sets', label: 'Sets Completed', value: setsCompleted, target: 0, fill: 'sets' },
+    { key: 'wish', label: 'Wishlist Items', value: wishlistCount, target: nextMilestone(wishlistCount, WISHLIST_MILESTONES), fill: 'wish' },
+    { key: 'ach', label: 'Achievements', value: unlockedAch.length, target: PROFILE_ACHIEVEMENTS.length, fill: 'ach' },
+  ]
+
+  const tabs = [
+    { key: 'overview', label: 'Overview', ico: '📊' },
+    { key: 'collection', label: 'Collection Overview', ico: '🗂️' },
+    { key: 'achievements', label: 'Achievements', ico: '🏆' },
+    { key: 'wishlist', label: 'Wishlist', ico: '❤️' },
+    { key: 'friends', label: 'Friends', ico: '👥' },
+    { key: 'activity', label: 'Activity', ico: '📡' },
+  ]
+
+  /* ── reusable blocks ── */
+  const FriendsPanel = (
+    <div className="nv-panel">
+      <div className="nv-panel-head">
+        <h2 className="nv-panel-title"><span className="nvp-ico">👥</span> Friends{profileFriends.length ? ` (${profileFriends.length})` : ''}</h2>
+        <button type="button" className="nv-panel-link" onClick={() => { setIsFriendSearchOpen(s => !s); setFriendSearchQuery(''); setFriendSearchResults([]) }}>
+          {isFriendSearchOpen ? 'Cancel' : 'View All Friends'}
+        </button>
+      </div>
+
+      {profileFriendRequests.length > 0 && (
+        <div style={{ marginBottom: 12 }}>
+          <p className="nv-profile-muted" style={{ padding: '0 2px 6px' }}>{profileFriendRequests.length} pending {profileFriendRequests.length === 1 ? 'request' : 'requests'}</p>
+          {profileFriendRequests.map(req => (
+            <div key={req.friendshipId} className="nv-friend-row">
+              <div className="nv-friend-av">{req.avatar_url ? <img src={req.avatar_url} alt="" /> : <span>{(req.display_name || '?')[0].toUpperCase()}</span>}</div>
+              <div className="nv-friend-main"><div className="nv-friend-name">{req.display_name || 'Unknown'}</div></div>
+              <button type="button" className="nv-panel-link" onClick={() => handleAcceptFriendRequest(req)}>Accept</button>
+              <button type="button" className="nv-panel-link" onClick={() => handleDeclineFriendRequest(req.friendshipId)}>Decline</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {isFriendSearchOpen && (
+        <div style={{ marginBottom: 12 }}>
+          <input
+            type="text"
+            className="profile-friend-search-input"
+            style={{ width: '100%', padding: '9px 12px', borderRadius: 9, background: '#0e1620', border: '1px solid rgba(120,150,190,0.16)', color: '#e8eef6' }}
+            placeholder="Search by display name…"
+            value={friendSearchQuery}
+            onChange={e => handleFriendSearch(e.target.value)}
+            autoFocus
+          />
+          {friendSearchLoading && <p className="nv-profile-muted">Searching…</p>}
+          {!friendSearchLoading && friendSearchQuery && friendSearchResults.length === 0 && <p className="nv-profile-muted">No users found.</p>}
+          {friendSearchResults.map(user => {
+            const alreadyFriend = profileFriends.some(f => f.userId === user.id)
+            const sent = profileSentToIds.has(user.id) || user._sent
+            const incoming = profileFriendRequests.some(r => r.userId === user.id)
+            return (
+              <div key={user.id} className="nv-friend-row">
+                <div className="nv-friend-av">{user.avatar_url ? <img src={user.avatar_url} alt="" /> : <span>{(user.display_name || '?')[0].toUpperCase()}</span>}</div>
+                <div className="nv-friend-main"><div className="nv-friend-name">{user.display_name || 'Unknown'}</div></div>
+                {alreadyFriend ? <span className="nv-friend-sub">Friends</span>
+                  : incoming ? <span className="nv-friend-sub">Requested you</span>
+                  : sent ? <span className="nv-friend-sub">Request sent</span>
+                  : <button type="button" className="nv-panel-link" onClick={() => handleSendFriendRequest(user.id)}>Add Friend</button>}
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {profileFriends.length > 0 ? (
+        profileFriends.map(friend => (
+          <div key={friend.friendshipId} className="nv-friend-row">
+            <div className="nv-friend-av">{friend.avatar_url ? <img src={friend.avatar_url} alt="" /> : <span>{(friend.display_name || '?')[0].toUpperCase()}</span>}</div>
+            <div className="nv-friend-main">
+              <div className="nv-friend-name">{friend.display_name || 'Unknown'}</div>
+              <div className="nv-friend-sub">Collector</div>
+            </div>
+            <button type="button" className="nv-friend-chevron" title="Remove friend" onClick={() => handleRemoveFriend(friend.friendshipId, friend.userId)}>✕</button>
+          </div>
+        ))
+      ) : !isFriendSearchOpen && profileFriendRequests.length === 0 && (
+        <p className="nv-profile-muted">No friends yet — use View All Friends to connect with other collectors.</p>
+      )}
+
+      <button type="button" className="nv-rail-find" onClick={() => { setIsFriendSearchOpen(true); setFriendSearchQuery(''); setFriendSearchResults([]) }}>
+        ＋ Find Friends
+      </button>
+    </div>
+  )
+
+  const AchievementsPanel = (full) => {
+    const list = full ? PROFILE_ACHIEVEMENTS : unlockedAch.slice(0, 4)
+    return (
+      <div className="nv-panel">
+        <div className="nv-panel-head">
+          <h2 className="nv-panel-title"><span className="nvp-ico">🏆</span> {full ? 'Achievements' : 'Recent Achievements'}</h2>
+          {!full && <button type="button" className="nv-panel-link" onClick={() => setActiveTab('achievements')}>View All</button>}
+          {full && <span className="nv-profile-muted" style={{ padding: 0 }}>{unlockedAch.length} / {PROFILE_ACHIEVEMENTS.length} unlocked</span>}
+        </div>
+        {full ? (
+          <div className="nv-ach-grid">
+            {PROFILE_ACHIEVEMENTS.map(a => {
+              const on = stats ? a.check(stats) : false
+              return (
+                <div key={a.id} className={`nv-ach-card${on ? ' is-on' : ''}`} title={a.desc}>
+                  <div className="nv-ach-card-ico">{on ? a.icon : '🔒'}</div>
+                  <div className="nv-ach-card-name">{a.name}</div>
+                  <div className="nv-ach-card-desc">{a.desc}</div>
                 </div>
+              )
+            })}
+          </div>
+        ) : list.length ? list.map(a => (
+          <div key={a.id} className="nv-ach-row">
+            <div className="nv-ach-badge">{a.icon}</div>
+            <div className="nv-ach-main">
+              <div className="nv-ach-name">{a.name}</div>
+              <div className="nv-ach-desc">{a.desc}</div>
+            </div>
+          </div>
+        )) : <p className="nv-profile-muted">No achievements unlocked yet.</p>}
+      </div>
+    )
+  }
 
-                {profileIsLoading ? (
-                  <div className="profile-loading">Loading stats…</div>
-                ) : (
-                  <>
-                    {/* Stat cards row */}
-                    {(() => {
-                      const unlockedCount = profileStats ? PROFILE_ACHIEVEMENTS.filter(a => a.check(profileStats)).length : 0
-                      return (
-                        <div className="profile-stats-row">
-                          {[
-                            { value: profileStats?.totalItems?.toLocaleString() ?? '—', label: 'Total Copies' },
-                            { value: profileStats?.uniqueItems?.toLocaleString() ?? '—', label: 'Unique Items' },
-                            { value: profileStats?.totalValue != null ? `$${profileStats.totalValue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : '—', label: 'Est. Value' },
-                            { value: `${unlockedCount} / ${PROFILE_ACHIEVEMENTS.length}`, label: 'Achievements' },
-                          ].map(({ value, label }) => (
-                            <div key={label} className="profile-stat-card">
-                              <span className="profile-stat-number">{value}</span>
-                              <span className="profile-stat-label">{label}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )
-                    })()}
+  const QuickActions = (
+    <div className="nv-panel">
+      <div className="nv-panel-head"><h2 className="nv-panel-title"><span className="nvp-ico">⚡</span> Quick Actions</h2></div>
+      <div className="nv-qa-list">
+        <button type="button" className="nv-qa-btn" onClick={goto('collection')}><span className="nv-qa-ico nv-qa-ico--add">＋</span> Add New Item</button>
+        <button type="button" className="nv-qa-btn" onClick={goto('collection')}><span className="nv-qa-ico nv-qa-ico--scan">▦</span> Scan Barcode / UPC</button>
+        <button type="button" className="nv-qa-btn" onClick={goto('wishlist')}><span className="nv-qa-ico nv-qa-ico--wish">♥</span> View Wishlist</button>
+        <button type="button" className="nv-qa-btn" onClick={goto('catalog')}><span className="nv-qa-ico nv-qa-ico--browse">▤</span> Browse Catalog</button>
+      </div>
+    </div>
+  )
 
-                    {/* Friends */}
-                    <div className="profile-panel">
-                      <div className="profile-panel-header">
-                        <h2 className="profile-panel-title">Friends{profileFriends.length > 0 ? ` (${profileFriends.length})` : ''}</h2>
-                        <button
-                          type="button"
-                          className="profile-friend-find-btn"
-                          onClick={() => { setIsFriendSearchOpen(s => !s); setFriendSearchQuery(''); setFriendSearchResults([]) }}
-                        >
-                          {isFriendSearchOpen ? 'Cancel' : 'Find Friends'}
-                        </button>
-                      </div>
+  const CollectionOverviewPanel = (
+    <div className="nv-panel">
+      <div className="nv-panel-head">
+        <h2 className="nv-panel-title"><span className="nvp-ico">📊</span> Collection Overview</h2>
+        <button type="button" className="nv-panel-link" onClick={() => setActiveTab('collection')}>View Details</button>
+      </div>
+      <div className="nv-ov-list">
+        {overviewRows.map(row => {
+          const pct = row.target > 0 ? Math.min(100, Math.round((row.value / row.target) * 100)) : 0
+          return (
+            <div key={row.key} className="nv-ov-row">
+              <span className="nv-ov-label">{row.label}</span>
+              <div className="nv-ov-track"><div className={`nv-ov-fill nv-ov-fill--${row.fill}`} style={{ width: `${pct}%` }} /></div>
+              <span className="nv-ov-vals">
+                <strong>{row.value.toLocaleString()}</strong>{row.target > 0 ? ` / ${row.target.toLocaleString()}` : ''}
+                <span className="nv-ov-pct">{pct}%</span>
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
 
-                      {/* Incoming requests */}
-                      {profileFriendRequests.length > 0 && (
-                        <div className="profile-friend-requests">
-                          <p className="profile-friend-requests-label">{profileFriendRequests.length} pending {profileFriendRequests.length === 1 ? 'request' : 'requests'}</p>
-                          {profileFriendRequests.map(req => (
-                            <div key={req.friendshipId} className="profile-friend-request-row">
-                              <div className="profile-friend-avatar profile-friend-avatar--sm">
-                                {req.avatar_url ? <img src={req.avatar_url} alt="" /> : <span>{(req.display_name || '?')[0].toUpperCase()}</span>}
-                              </div>
-                              <span className="profile-friend-name">{req.display_name || 'Unknown'}</span>
-                              <button type="button" className="profile-friend-action-btn profile-friend-action-btn--accept" onClick={() => handleAcceptFriendRequest(req)}>Accept</button>
-                              <button type="button" className="profile-friend-action-btn profile-friend-action-btn--decline" onClick={() => handleDeclineFriendRequest(req.friendshipId)}>Decline</button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Find Friends search */}
-                      {isFriendSearchOpen && (
-                        <div className="profile-friend-search">
-                          <input
-                            type="text"
-                            className="profile-friend-search-input"
-                            placeholder="Search by display name…"
-                            value={friendSearchQuery}
-                            onChange={e => handleFriendSearch(e.target.value)}
-                            autoFocus
-                          />
-                          {friendSearchLoading && <p className="profile-friend-search-hint">Searching…</p>}
-                          {!friendSearchLoading && friendSearchQuery && friendSearchResults.length === 0 && (
-                            <p className="profile-friend-search-hint">No users found.</p>
-                          )}
-                          {friendSearchResults.map(user => {
-                            const alreadyFriend = profileFriends.some(f => f.userId === user.id)
-                            const sent = profileSentToIds.has(user.id) || user._sent
-                            const incoming = profileFriendRequests.some(r => r.userId === user.id)
-                            return (
-                              <div key={user.id} className="profile-friend-result-row">
-                                <div className="profile-friend-avatar profile-friend-avatar--sm">
-                                  {user.avatar_url ? <img src={user.avatar_url} alt="" /> : <span>{(user.display_name || '?')[0].toUpperCase()}</span>}
-                                </div>
-                                <span className="profile-friend-name">{user.display_name || 'Unknown'}</span>
-                                {alreadyFriend ? (
-                                  <span className="profile-friend-status">Friends</span>
-                                ) : incoming ? (
-                                  <span className="profile-friend-status">Requested you</span>
-                                ) : sent ? (
-                                  <span className="profile-friend-status">Request sent</span>
-                                ) : (
-                                  <button type="button" className="profile-friend-action-btn profile-friend-action-btn--add" onClick={() => handleSendFriendRequest(user.id)}>Add Friend</button>
-                                )}
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )}
-
-                      {/* Friends grid */}
-                      {profileFriends.length > 0 ? (
-                        <div className="profile-friends-grid">
-                          {profileFriends.map(friend => (
-                            <div key={friend.friendshipId} className="profile-friend-card">
-                              <div className="profile-friend-avatar">
-                                {friend.avatar_url ? <img src={friend.avatar_url} alt="" /> : <span>{(friend.display_name || '?')[0].toUpperCase()}</span>}
-                              </div>
-                              <p className="profile-friend-card-name">{friend.display_name || 'Unknown'}</p>
-                              <button type="button" className="profile-friend-remove-btn" title="Remove friend" onClick={() => handleRemoveFriend(friend.friendshipId, friend.userId)}>✕</button>
-                            </div>
-                          ))}
-                        </div>
-                      ) : !isFriendSearchOpen && profileFriendRequests.length === 0 && (
-                        <p className="profile-friend-empty">No friends yet. Click Find Friends to connect with other collectors.</p>
-                      )}
-                    </div>
-
-                    {/* Recently added */}
-                    {profileRecentItems.length > 0 && (
-                      <div className="profile-panel">
-                        <h2 className="profile-panel-title">Recently Added</h2>
-                        <div className="profile-recent-grid">
-                          {profileRecentItems.map((item, i) => {
-                            const imgUrl = item.front_image_path
-                              ? (item.front_image_path.startsWith('http')
-                                  ? item.front_image_path
-                                  : `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/item-images/${item.front_image_path}`)
-                              : null
-                            const label = [item.subject, item.print_type, item.card_number ? `#${item.card_number}` : null].filter(Boolean).join(' — ') || item.collectible_set || 'Item'
-                            return (
-                              <button key={`${item.item_id}-${i}`} type="button" className="profile-recent-card profile-recent-card--btn" onClick={() => handleOpenProfileItem(item)}>
-                                <div className="profile-recent-img-wrap">
-                                  {imgUrl
-                                    ? <img src={imgUrl} alt={label} className="profile-recent-img" />
-                                    : <div className="profile-recent-img-placeholder" />
-                                  }
-                                </div>
-                                <p className="profile-recent-label">{label}</p>
-                                {item.created_at && <p className="profile-recent-date">{new Date(item.created_at).toLocaleDateString()}</p>}
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Most Valuable */}
-                    {profileMostValuable.length > 0 && (
-                      <div className="profile-panel">
-                        <h2 className="profile-panel-title">Most Valuable</h2>
-                        <div className="profile-recent-grid">
-                          {profileMostValuable.map((item, i) => {
-                            const imgUrl = item.front_image_path
-                              ? (item.front_image_path.startsWith('http')
-                                  ? item.front_image_path
-                                  : `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/item-images/${item.front_image_path}`)
-                              : null
-                            const label = [item.subject, item.print_type, item.card_number ? `#${item.card_number}` : null].filter(Boolean).join(' — ') || item.collectible_set || 'Item'
-                            return (
-                              <button key={`mv-${item.item_id}-${i}`} type="button" className="profile-recent-card profile-recent-card--btn" onClick={() => handleOpenProfileItem(item)}>
-                                <div className="profile-recent-img-wrap">
-                                  {imgUrl
-                                    ? <img src={imgUrl} alt={label} className="profile-recent-img" />
-                                    : <div className="profile-recent-img-placeholder" />
-                                  }
-                                </div>
-                                <p className="profile-recent-label">{label}</p>
-                                <p className="profile-recent-date profile-recent-value">${item.purchase_price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Category breakdown */}
-                    {profileStats?.categoryBreakdown?.length > 0 && (
-                      <div className="profile-panel">
-                        <h2 className="profile-panel-title">Collection by Category</h2>
-                        <div className="profile-category-list">
-                          {profileStats.categoryBreakdown.map(([catId, count]) => {
-                            const catName = catalogCategories.find(c => c.id === catId)?.name || 'Unknown'
-                            const pct = Math.round((count / (profileStats.uniqueItems || 1)) * 100)
-                            return (
-                              <div key={catId} className="profile-category-row">
-                                <span className="profile-category-name">{catName}</span>
-                                <div className="profile-category-track">
-                                  <div className="profile-category-fill" style={{ width: `${pct}%` }} />
-                                </div>
-                                <span className="profile-category-count">{count.toLocaleString()}</span>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Achievements */}
-                    {(() => {
-                      const groups = [...new Set(PROFILE_ACHIEVEMENTS.map(a => a.group))]
-                      const totalUnlocked = profileStats ? PROFILE_ACHIEVEMENTS.filter(a => a.check(profileStats)).length : 0
-                      return (
-                        <div className="profile-panel">
-                          <div className="profile-panel-header">
-                            <h2 className="profile-panel-title">Achievements</h2>
-                            <span className="profile-achievements-count">{totalUnlocked} / {PROFILE_ACHIEVEMENTS.length} unlocked</span>
-                          </div>
-                          {groups.map(group => {
-                            const list = PROFILE_ACHIEVEMENTS.filter(a => a.group === group)
-                            const groupUnlocked = profileStats ? list.filter(a => a.check(profileStats)).length : 0
-                            return (
-                              <div key={group} className="profile-ach-group">
-                                <div className="profile-ach-group-header">
-                                  <span className="profile-ach-group-name">{group}</span>
-                                  <span className="profile-ach-group-count">{groupUnlocked}/{list.length}</span>
-                                </div>
-                                <div className="profile-ach-grid">
-                                  {list.map(ach => {
-                                    const unlocked = profileStats ? ach.check(profileStats) : false
-                                    return (
-                                      <div
-                                        key={ach.id}
-                                        className={`profile-ach-card profile-ach-card--${ach.rarity}${unlocked ? ' profile-ach-card--on' : ''}`}
-                                        title={ach.desc}
-                                      >
-                                        <div className="profile-ach-icon">{unlocked ? ach.icon : '🔒'}</div>
-                                        <div className="profile-ach-name">{ach.name}</div>
-                                        <div className="profile-ach-desc">{ach.desc}</div>
-                                        {unlocked && <div className={`profile-ach-rarity profile-ach-rarity--${ach.rarity}`}>{ach.rarity}</div>}
-                                      </div>
-                                    )
-                                  })}
-                                </div>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )
-                    })()}
-                  </>
-                )}
+  return (
+    <section className="nv-profile" aria-label="My Profile">
+      {/* ── Identity header ── */}
+      <div className="nv-profile-header">
+        <button type="button" className="nv-profile-edit-btn" onClick={goto('settings')}>✎ Edit Profile</button>
+        <div className="nv-profile-header-row">
+          <div className="nv-profile-avatar">
+            {profile.avatar_url ? <img src={profile.avatar_url} alt="avatar" /> : avatarInitial}
+            <span className="nv-profile-avatar-edit" onClick={goto('settings')} role="button" aria-label="Edit avatar">✎</span>
+          </div>
+          <div className="nv-profile-id">
+            <h1 className="nv-profile-name">{displayName}</h1>
+            <p className="nv-profile-title">{tierLabel}</p>
+            <div className="nv-profile-meta">
+              {joinLabel && <div className="nv-profile-meta-row"><span className="nvp-ico">◷</span> Collector since {joinLabel}</div>}
+              {profile.location && <div className="nv-profile-meta-row"><span className="nvp-ico">⚲</span> {profile.location}</div>}
+              {joinedAgo && <div className="nv-profile-meta-row"><span className="nvp-ico">◴</span> {joinedAgo}</div>}
+            </div>
+          </div>
+          <div className="nv-profile-header-stats">
+            {headerStats.map(s => (
+              <div key={s.lbl} className="nv-profile-hstat">
+                <span className="nv-profile-hstat-val">{s.val}</span>
+                <span className="nv-profile-hstat-lbl">{s.lbl}</span>
               </div>
-            )}
-          </section>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Tabs ── */}
+      <nav className="nv-profile-tabs" aria-label="Profile sections">
+        {tabs.map(tab => (
+          <button
+            key={tab.key}
+            type="button"
+            className={`nv-profile-tab${activeTab === tab.key ? ' is-active' : ''}`}
+            onClick={() => setActiveTab(tab.key)}
+          >
+            <span className="nvp-ico">{tab.ico}</span> {tab.label}
+          </button>
+        ))}
+      </nav>
+
+      {profileIsLoading ? (
+        <div className="nv-panel"><p className="nv-profile-muted">Loading stats…</p></div>
+      ) : activeTab === 'achievements' ? (
+        AchievementsPanel(true)
+      ) : activeTab === 'friends' ? (
+        FriendsPanel
+      ) : activeTab === 'wishlist' ? (
+        <div className="nv-panel">
+          <div className="nv-panel-head"><h2 className="nv-panel-title"><span className="nvp-ico">❤️</span> Wishlist</h2>
+            <button type="button" className="nv-panel-link" onClick={goto('wishlist')}>Open Wishlist</button></div>
+          <p className="nv-profile-muted">{wishlistCount.toLocaleString()} item{wishlistCount === 1 ? '' : 's'} on your wishlist.</p>
+        </div>
+      ) : activeTab === 'activity' ? (
+        <div className="nv-panel">
+          <div className="nv-panel-head"><h2 className="nv-panel-title"><span className="nvp-ico">📡</span> Activity</h2></div>
+          {profileRecentItems?.length ? profileRecentItems.slice(0, 10).map((item, i) => (
+            <div key={`${item.item_id}-${i}`} className="nv-ach-row" onClick={() => handleOpenProfileItem(item)} style={{ cursor: 'pointer' }}>
+              <div className="nv-ach-badge">＋</div>
+              <div className="nv-ach-main">
+                <div className="nv-ach-name">Added {itemLabel(item)}</div>
+                {item.created_at && <div className="nv-ach-desc">{new Date(item.created_at).toLocaleDateString()}</div>}
+              </div>
+            </div>
+          )) : <p className="nv-profile-muted">No recent activity.</p>}
+        </div>
+      ) : (
+        /* ── Overview & Collection Overview tabs share the dashboard body ── */
+        <div className="nv-profile-body">
+          <div className="nv-profile-col">
+            {/* About Me */}
+            <div className="nv-panel">
+              <div className="nv-panel-head"><h2 className="nv-panel-title"><span className="nvp-ico">👤</span> About Me</h2></div>
+              {profile.bio
+                ? String(profile.bio).split('\n').filter(Boolean).map((line, i) => <p key={i} className="nv-about-text">{line}</p>)
+                : <p className="nv-about-text">Passionate collector. Tell other collectors about yourself and the grails you’re chasing.</p>}
+              <button type="button" className="nv-about-edit" onClick={goto('settings')}>✎ Edit Bio</button>
+            </div>
+
+            {CollectionOverviewPanel}
+
+            {/* Favorite Items */}
+            <div className="nv-panel">
+              <div className="nv-panel-head">
+                <h2 className="nv-panel-title"><span className="nvp-ico">★</span> Favorite Items</h2>
+                <button type="button" className="nv-panel-link" onClick={goto('collection')}>View All Favorites</button>
+              </div>
+              {favItems.length ? (
+                <div className="nv-fav-wrap">
+                  <button type="button" className="nv-fav-arrow nv-fav-arrow--l" onClick={scrollFav(-1)} aria-label="Scroll left">‹</button>
+                  <div className="nv-fav-strip" ref={favStripRef}>
+                    {favItems.map((item, i) => {
+                      const url = storageImg(item.front_image_path)
+                      return (
+                        <button key={`${item.item_id}-${i}`} type="button" className="nv-fav-card" onClick={() => handleOpenProfileItem(item)}>
+                          <div className="nv-fav-thumb">
+                            {url ? <img src={url} alt={itemLabel(item)} /> : <span className="nv-fav-thumb-empty">?</span>}
+                            <span className="nv-fav-heart">♥</span>
+                          </div>
+                          <span className="nv-fav-label">{itemLabel(item)}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <button type="button" className="nv-fav-arrow nv-fav-arrow--r" onClick={scrollFav(1)} aria-label="Scroll right">›</button>
+                </div>
+              ) : <p className="nv-profile-muted">No favorites yet.</p>}
+            </div>
+
+            {/* My Collections */}
+            <div className="nv-panel">
+              <div className="nv-panel-head">
+                <h2 className="nv-panel-title"><span className="nvp-ico">🗂️</span> My Collections</h2>
+                <button type="button" className="nv-panel-link" onClick={goto('collection')}>View All Collections</button>
+              </div>
+              {categoryBreakdown.length ? (
+                <div className="nv-coll-grid">
+                  {categoryBreakdown.map(([catId, count]) => {
+                    const pct = Math.round((count / (uniqueItems || 1)) * 100)
+                    return (
+                      <button key={catId} type="button" className="nv-coll-card" onClick={goto('collection')}>
+                        <div className="nv-coll-cover">{catName(catId)[0]?.toUpperCase() || '▦'}</div>
+                        <div className="nv-coll-body">
+                          <p className="nv-coll-name">{catName(catId)}</p>
+                          <div className="nv-coll-meta"><span>{count.toLocaleString()} items</span><span className="nv-coll-pct">{pct}%</span></div>
+                          <div className="nv-coll-track"><div className="nv-coll-fill" style={{ width: `${Math.min(100, pct)}%` }} /></div>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              ) : <p className="nv-profile-muted">Add items to start building collections.</p>}
+            </div>
+          </div>
+
+          {/* ── Right rail ── */}
+          <div className="nv-profile-col">
+            {FriendsPanel}
+            {AchievementsPanel(false)}
+            {QuickActions}
+          </div>
+        </div>
+      )}
+    </section>
   )
 }

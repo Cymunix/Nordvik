@@ -2,6 +2,7 @@
 // activity (no stored XP, no fabricated numbers). Canonical earning rules:
 export const XP_RULES = {
   uniqueItem: 50,        // each new unique item
+  wishlistItem: 50,      // each item added to the wishlist
   duplicate: 10,         // each duplicate copy
   firstPhoto: 50,        // adding the first photo to an item
   completeDetails: 25,   // completing an item's details
@@ -27,6 +28,7 @@ export function setCompletionMilestoneXp(fraction) {
 // Total XP from all earners. Inputs with no data source yet default to 0.
 export function computeCollectorXp({
   uniqueItems = 0,
+  wishlistItems = 0,
   duplicates = 0,
   photosAdded = 0,
   completeDetails = 0,
@@ -36,6 +38,7 @@ export function computeCollectorXp({
 }) {
   return Math.round(
     uniqueItems * XP_RULES.uniqueItem +
+    wishlistItems * XP_RULES.wishlistItem +
     duplicates * XP_RULES.duplicate +
     photosAdded * XP_RULES.firstPhoto +
     completeDetails * XP_RULES.completeDetails +

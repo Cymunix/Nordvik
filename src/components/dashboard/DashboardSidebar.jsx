@@ -8,7 +8,13 @@ import {
   IconWishlist,
   IconStores,
   IconSales,
-  IconEvents,
+  IconMuseum,
+  IconCommunity,
+  IconFriends,
+  IconLeaderboard,
+  IconAchievements,
+  IconNews,
+  IconResources,
 } from './icons'
 
 export default function DashboardSidebar({
@@ -24,8 +30,14 @@ export default function DashboardSidebar({
   onCatalogue,
   onWishlist,
   onStores,
-  onSales,
-  onEvents,
+  onSalesEvents,
+  onMuseum,
+  onCommunity,
+  onFriends,
+  onLeaderboards,
+  onAchievements,
+  onNews,
+  onResources,
   onProfile,
   onSettings,
   onSignOut,
@@ -37,14 +49,25 @@ export default function DashboardSidebar({
   xpPct = 0,
   xpLabel,
 }) {
+  // Primary collection-management group.
   const items = [
     { key: 'dashboard', label: 'Dashboard', Icon: IconDashboard, onClick: onDashboard, active: activeScreen === 'dashboard' },
     { key: 'catalogue', label: 'Catalogue', Icon: IconCatalogue, onClick: onCatalogue, active: activeScreen === 'catalogue' },
     { key: 'collection', label: 'My Collection', Icon: IconCollection, onClick: onCollection, active: activeScreen === 'collection' },
     { key: 'wishlist', label: 'Wishlist', Icon: IconWishlist, onClick: onWishlist, active: activeScreen === 'wishlist' },
     { key: 'stores', label: 'Stores', Icon: IconStores, onClick: onStores, active: activeScreen === 'stores' },
-    { key: 'sales', label: 'Sales', Icon: IconSales, onClick: onSales, active: activeScreen === 'sales' },
-    { key: 'events', label: 'Events', Icon: IconEvents, onClick: onEvents, active: activeScreen === 'events' },
+    { key: 'salesEvents', label: 'Sales & Events', Icon: IconSales, onClick: onSalesEvents, active: activeScreen === 'salesEvents' },
+    { key: 'museum', label: 'Museum', Icon: IconMuseum, onClick: onMuseum, active: activeScreen === 'museum' },
+  ]
+
+  // Community group — separated by a divider below the primary group.
+  const communityItems = [
+    { key: 'community', label: 'Community', Icon: IconCommunity, onClick: onCommunity, active: activeScreen === 'community' },
+    { key: 'friends', label: 'Friends', Icon: IconFriends, onClick: onFriends, active: activeScreen === 'friends' },
+    { key: 'leaderboards', label: 'Leaderboards', Icon: IconLeaderboard, onClick: onLeaderboards, active: activeScreen === 'leaderboards' },
+    { key: 'achievements', label: 'Achievements', Icon: IconAchievements, onClick: onAchievements, active: activeScreen === 'achievements' },
+    { key: 'news', label: 'News', Icon: IconNews, onClick: onNews, active: activeScreen === 'news' },
+    { key: 'resources', label: 'Resources', Icon: IconResources, onClick: onResources, active: activeScreen === 'resources' },
   ]
 
   return (
@@ -59,6 +82,19 @@ export default function DashboardSidebar({
 
       <nav className="nv-nav">
         {items.map(({ key, label, Icon, onClick, active }) => (
+          <button
+            key={key}
+            type="button"
+            className={`nv-nav-item${active ? ' is-active' : ''}`}
+            aria-current={active ? 'page' : undefined}
+            onClick={onClick}
+          >
+            <Icon />
+            <span>{label}</span>
+          </button>
+        ))}
+        <div className="nv-nav-divider" role="separator" />
+        {communityItems.map(({ key, label, Icon, onClick, active }) => (
           <button
             key={key}
             type="button"

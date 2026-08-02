@@ -15080,8 +15080,14 @@ function App() {
         onCatalogue={handleOpenCatalog}
         onWishlist={handleOpenWishlist}
         onStores={() => { setConstructionSection({ key: 'stores', label: t('stores') }); setCurrentScreen('under_construction') }}
-        onSales={() => { setConstructionSection({ key: 'sales', label: t('sales') }); setCurrentScreen('under_construction') }}
-        onEvents={() => { setConstructionSection({ key: 'events', label: t('events') }); setCurrentScreen('under_construction') }}
+        onSalesEvents={() => { setConstructionSection({ key: 'salesEvents', label: 'Sales & Events' }); setCurrentScreen('under_construction') }}
+        onMuseum={() => { setConstructionSection({ key: 'museum', label: 'Museum' }); setCurrentScreen('under_construction') }}
+        onCommunity={() => { setConstructionSection({ key: 'community', label: 'Community' }); setCurrentScreen('under_construction') }}
+        onFriends={() => handleMenuAction(t('myProfile'))}
+        onLeaderboards={() => { setConstructionSection({ key: 'leaderboards', label: 'Leaderboards' }); setCurrentScreen('under_construction') }}
+        onAchievements={() => handleMenuAction(t('myProfile'))}
+        onNews={() => { setConstructionSection({ key: 'news', label: 'News' }); setCurrentScreen('under_construction') }}
+        onResources={() => { setConstructionSection({ key: 'resources', label: 'Resources' }); setCurrentScreen('under_construction') }}
         onProfile={() => handleMenuAction(t('myProfile'))}
         onSettings={handleOpenSettings}
         onSignOut={handleSignOut}

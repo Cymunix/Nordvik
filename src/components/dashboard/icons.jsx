@@ -41,6 +41,27 @@ export const IconItems = (p) => (
 export const IconGraded = (p) => (
   <svg {...base} {...p}><path d="M12 3l2.4 4.9 5.4.8-3.9 3.8.9 5.4-4.8-2.5-4.8 2.5.9-5.4L4.2 8.7l5.4-.8z" /></svg>
 )
+export const IconMuseum = (p) => (
+  <svg {...base} {...p}><path d="M3 9l9-5 9 5" /><path d="M5 9v8M10 9v8M14 9v8M19 9v8" /><path d="M3 20h18M4 17h16" /></svg>
+)
+export const IconCommunity = (p) => (
+  <svg {...base} {...p}><circle cx="9" cy="8" r="3" /><path d="M3.5 20a5.5 5.5 0 0 1 11 0" /><path d="M16 5.2a3 3 0 0 1 0 5.6" /><path d="M17.5 14.3A5.5 5.5 0 0 1 20.5 19" /></svg>
+)
+export const IconFriends = (p) => (
+  <svg {...base} {...p}><circle cx="8" cy="9" r="3.2" /><circle cx="17" cy="7.5" r="2.4" /><path d="M2.5 19a5.5 5.5 0 0 1 11 0" /><path d="M15 13.2a4.2 4.2 0 0 1 6.5 3.5" /></svg>
+)
+export const IconLeaderboard = (p) => (
+  <svg {...base} {...p}><path d="M8 20V11M12 20V5M16 20v-6" /><path d="M4 20h16" /></svg>
+)
+export const IconAchievements = (p) => (
+  <svg {...base} {...p}><path d="M8 4h8v4a4 4 0 0 1-8 0z" /><path d="M8 5H5v2a3 3 0 0 0 3 3M16 5h3v2a3 3 0 0 1-3 3" /><path d="M12 12v4M9 20h6M10 20l.5-4h3l.5 4" /></svg>
+)
+export const IconNews = (p) => (
+  <svg {...base} {...p}><rect x="3" y="5" width="14" height="14" rx="1.5" /><path d="M17 8h3a1 1 0 0 1 1 1v8a2 2 0 0 1-2 2" /><path d="M6 9h8M6 12h8M6 15h5" /></svg>
+)
+export const IconResources = (p) => (
+  <svg {...base} {...p}><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H10a2 2 0 0 1 2 2 2 2 0 0 1 2-2h4.5A1.5 1.5 0 0 1 20 5.5V17a1 1 0 0 1-1 1h-5a2 2 0 0 0-2 2 2 2 0 0 0-2-2H5a1 1 0 0 1-1-1z" /></svg>
+)
 export const IconSettings = (p) => (
   <svg {...base} {...p}><circle cx="12" cy="12" r="3.2" /><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1v.2a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 6.6 21l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 3 15.4H2.8a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 4.6 9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.6 1.6 0 0 0 9 6.4V6.2a2 2 0 1 1 4 0v.1A1.6 1.6 0 0 0 17.4 6l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A1.6 1.6 0 0 0 21 12h.2a2 2 0 1 1 0 4H21z" /></svg>
 )

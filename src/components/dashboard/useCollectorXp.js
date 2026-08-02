@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabaseClient'
-import { computeCollectorXp, setCompletionMilestoneXp } from './levels'
+import { computeCollectorXp, setCompletionMilestoneXp, XP_RULES } from './levels'
 
 // Aggregates the user's real XP from the canonical earning rules.
 // Synchronous part (unique items + duplicates) comes from already-loaded
@@ -25,6 +25,12 @@ export default function useCollectorXp(userId, ownedCatalogItemCounts = {}) {
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId)
         .eq('sale_status', 'sold')
+
+      // Wishlist items (50 XP each).
+      const { count: wishlistCount } = await supabase
+        .from('wishlist_items')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
 
       // Set-completion milestones across the user's owned sets.
       const { data: owned } = await supabase
@@ -59,7 +65,7 @@ export default function useCollectorXp(userId, ownedCatalogItemCounts = {}) {
       }))
       if (cancelled) return
 
-      setAsyncXp((salesCount || 0) * 250 + milestoneXp)
+      setAsyncXp((salesCount || 0) * 250 + (wishlistCount || 0) * XP_RULES.wishlistItem + milestoneXp)
     })()
     return () => { cancelled = true }
   }, [userId])
