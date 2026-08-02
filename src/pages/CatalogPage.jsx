@@ -8,6 +8,7 @@ export default function CatalogPage({ scope }) {
   // Draft text for the Abilities chip/tag input (committed chips live in
   // catalogAdminDynamicFields.abilities as a jsonb array).
   const [abilityDraft, setAbilityDraft] = React.useState('')
+  const [traitDraft, setTraitDraft] = React.useState('')
 
   // Inline "+ New <level>" create for the spec-driven forms, reusing the shared
   // catalogAdminInlineCreate mechanism (handler keyed by `field`).
@@ -2088,10 +2089,11 @@ export default function CatalogPage({ scope }) {
                                           const df = cur.dynamic_fields || {}
                                           const dfset = (k, v) => updateBulkRow(bulkImportIdx, { dynamic_fields: { ...(cur.dynamic_fields || {}), [k]: v } })
                                           const abilities = Array.isArray(df.abilities) ? df.abilities.join('\n') : (df.abilities || '')
+                                          const traits = Array.isArray(df.traits) ? df.traits.join('\n') : (df.traits || '')
                                           const cardMeta = [
                                             ['unit_level', 'Unit Level'], ['evolves_from', 'Evolves From'], ['evolves_to', 'Evolves To'],
                                             ['attack', 'Attack'], ['health', 'Health'], ['damage', 'Damage'], ['shields', 'Shields'],
-                                            ['type', 'Type'], ['traits', 'Traits'], ['weakness', 'Weakness'], ['resistance', 'Resistance'],
+                                            ['type', 'Type'], ['weakness', 'Weakness'], ['resistance', 'Resistance'],
                                             ['artist', 'Artist'], ['language', 'Language'], ['legal', 'Legal'], ['cost', 'Cost'], ['finish', 'Finish'],
                                           ]
                                           return (<>
@@ -2122,6 +2124,7 @@ export default function CatalogPage({ scope }) {
                                               <div key={k} className="bulk-import-editor-field"><label>{label}</label><input type="text" value={df[k] || ''} onChange={e => dfset(k, e.target.value)} /></div>
                                             ))}
                                             <div className="bulk-import-editor-field bulk-import-editor-field--wide"><label>Abilities <span className="catalog-admin-hint">(one per line)</span></label><textarea rows={2} value={abilities} onChange={e => dfset('abilities', e.target.value.split('\n').map(s => s.trim()).filter(Boolean))} /></div>
+                                            <div className="bulk-import-editor-field bulk-import-editor-field--wide"><label>Traits <span className="catalog-admin-hint">(one per line)</span></label><textarea rows={2} value={traits} onChange={e => dfset('traits', e.target.value.split('\n').map(s => s.trim()).filter(Boolean))} /></div>
                                             <div className="bulk-import-editor-field bulk-import-editor-field--wide"><label>Portrays <span className="catalog-admin-hint">(comma separated)</span></label><input type="text" value={cur.portrays_text || ''} onChange={e => updateBulkRow(bulkImportIdx, { portrays_text: e.target.value })} /></div>
                                             <div className="bulk-import-editor-field bulk-import-editor-field--wide bulk-import-image-field">
                                               <label>Photo</label>
@@ -2643,16 +2646,18 @@ export default function CatalogPage({ scope }) {
                           ['resistance', 'Resistance'], ['artist', 'Artist'], ['language', 'Language'],
                           ['legal', 'Legal'], ['cost', 'Cost'], ['finish', 'Finish'],
                         ].map(([key, label]) => {
-                          // Abilities is multi-value → chip/tag input (jsonb array),
-                          // reusing the Subject/Portrays tag pattern.
-                          if (key === 'abilities') {
-                            const raw = catalogAdminDynamicFields.abilities
+                          // Abilities and Traits are multi-value → chip/tag input
+                          // (jsonb array), reusing the Subject/Portrays tag pattern.
+                          if (key === 'abilities' || key === 'traits') {
+                            const raw = catalogAdminDynamicFields[key]
                             const chips = Array.isArray(raw) ? raw : (raw ? [raw] : [])
-                            const addAbility = () => {
-                              const t = abilityDraft.trim()
-                              if (!t || chips.some(c => c.toLowerCase() === t.toLowerCase())) { setAbilityDraft(''); return }
-                              setCatalogAdminDynamicFields(v => ({ ...v, abilities: [...chips, t] }))
-                              setAbilityDraft('')
+                            const draft = key === 'abilities' ? abilityDraft : traitDraft
+                            const setDraft = key === 'abilities' ? setAbilityDraft : setTraitDraft
+                            const addChip = () => {
+                              const t = draft.trim()
+                              if (!t || chips.some(c => String(c).toLowerCase() === t.toLowerCase())) { setDraft(''); return }
+                              setCatalogAdminDynamicFields(v => ({ ...v, [key]: [...chips, t] }))
+                              setDraft('')
                             }
                             return (
                               <div key={key} style={{ gridColumn: '1 / -1' }}>
@@ -2662,14 +2667,14 @@ export default function CatalogPage({ scope }) {
                                     {chips.map((c, i) => (
                                       <span key={i} className="catalog-admin-subject-tag">
                                         <span style={{ fontWeight: 600 }}>{c}</span>
-                                        <button type="button" className="catalog-admin-subject-tag-remove" onClick={() => setCatalogAdminDynamicFields(v => ({ ...v, abilities: chips.filter((_, j) => j !== i) }))}>✕</button>
+                                        <button type="button" className="catalog-admin-subject-tag-remove" onClick={() => setCatalogAdminDynamicFields(v => ({ ...v, [key]: chips.filter((_, j) => j !== i) }))}>✕</button>
                                       </span>
                                     ))}
                                   </div>
                                 )}
                                 <div className="catalog-admin-inline-create">
-                                  <input className="catalog-admin-inline-input" style={{ width: '100%' }} placeholder="Type an ability, press Enter" value={abilityDraft} onChange={e => setAbilityDraft(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addAbility() } }} />
-                                  <button type="button" className="catalog-admin-inline-save" disabled={!abilityDraft.trim()} onClick={addAbility}>Add</button>
+                                  <input className="catalog-admin-inline-input" style={{ width: '100%' }} placeholder={`Type a ${key === 'abilities' ? 'ability' : 'trait'}, press Enter`} value={draft} onChange={e => setDraft(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addChip() } }} />
+                                  <button type="button" className="catalog-admin-inline-save" disabled={!draft.trim()} onClick={addChip}>Add</button>
                                 </div>
                               </div>
                             )

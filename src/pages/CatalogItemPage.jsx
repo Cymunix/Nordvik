@@ -216,6 +216,7 @@ export default function CatalogItemPage({ scope }) {
   const [showFullDesc, setShowFullDesc] = React.useState(false)
   const [showDescModal, setShowDescModal] = React.useState(false)
   const [editAbilityDraft, setEditAbilityDraft] = React.useState('')
+  const [editTraitDraft, setEditTraitDraft] = React.useState('')
   const [adminMenuOpen, setAdminMenuOpen] = React.useState(false)
   // Cap the Abilities card so its bottom never drops below the image column:
   // measure the media column and constrain the abilities box (scroll if longer).
@@ -713,37 +714,45 @@ export default function CatalogItemPage({ scope }) {
                         if (editCatName2 !== 'Trading Cards' && editCatName2 !== 'Sports Cards') return null
                         const dyn = catalogItemEditValues.dynamic_fields || {}
                         const setDyn = (key, val) => setCatalogItemEditValues(v => ({ ...v, dynamic_fields: { ...(v.dynamic_fields || {}), [key]: val } }))
-                        const chips = Array.isArray(dyn.abilities) ? dyn.abilities : (dyn.abilities ? [dyn.abilities] : [])
-                        const addAb = () => {
-                          const t = editAbilityDraft.trim()
-                          if (!t || chips.some(c => String(c).toLowerCase() === t.toLowerCase())) { setEditAbilityDraft(''); return }
-                          setDyn('abilities', [...chips, t]); setEditAbilityDraft('')
-                        }
-                        const fields = [
-                          ['unit_level', 'Unit Level'], ['evolves_from', 'Evolves From'], ['evolves_to', 'Evolves To'],
-                          ['attack', 'Attack'], ['health', 'Health'], ['damage', 'Damage'], ['shields', 'Shields'],
-                          ['type', 'Type'], ['traits', 'Traits'], ['weakness', 'Weakness'], ['resistance', 'Resistance'],
-                          ['artist', 'Artist'], ['language', 'Language'], ['legal', 'Legal'], ['cost', 'Cost'], ['finish', 'Finish'],
-                        ]
-                        return (
-                          <>
+                        // Abilities and Traits are multi-value chip editors.
+                        const chipEditor = (key, label, draft, setDraft, ph) => {
+                          const raw = dyn[key]
+                          const chips = Array.isArray(raw) ? raw : (raw ? [raw] : [])
+                          const add = () => {
+                            const t = draft.trim()
+                            if (!t || chips.some(c => String(c).toLowerCase() === t.toLowerCase())) { setDraft(''); return }
+                            setDyn(key, [...chips, t]); setDraft('')
+                          }
+                          return (
                             <div className="catalog-item-edit-field catalog-item-edit-field--wide">
-                              <span>Abilities</span>
+                              <span>{label}</span>
                               {chips.length > 0 && (
                                 <div className="catalog-admin-subject-tags">
                                   {chips.map((c, i) => (
                                     <span key={i} className="catalog-admin-subject-tag">
                                       <span style={{ fontWeight: 600 }}>{c}</span>
-                                      <button type="button" className="catalog-admin-subject-tag-remove" onClick={() => setDyn('abilities', chips.filter((_, j) => j !== i))}>✕</button>
+                                      <button type="button" className="catalog-admin-subject-tag-remove" onClick={() => setDyn(key, chips.filter((_, j) => j !== i))}>✕</button>
                                     </span>
                                   ))}
                                 </div>
                               )}
                               <div className="catalog-admin-inline-create">
-                                <input className="catalog-admin-inline-input" style={{ width: '100%' }} placeholder="Type an ability, press Enter" value={editAbilityDraft} onChange={e => setEditAbilityDraft(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addAb() } }} />
-                                <button type="button" className="catalog-admin-inline-save" disabled={!editAbilityDraft.trim()} onClick={addAb}>Add</button>
+                                <input className="catalog-admin-inline-input" style={{ width: '100%' }} placeholder={ph} value={draft} onChange={e => setDraft(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); add() } }} />
+                                <button type="button" className="catalog-admin-inline-save" disabled={!draft.trim()} onClick={add}>Add</button>
                               </div>
                             </div>
+                          )
+                        }
+                        const fields = [
+                          ['unit_level', 'Unit Level'], ['evolves_from', 'Evolves From'], ['evolves_to', 'Evolves To'],
+                          ['attack', 'Attack'], ['health', 'Health'], ['damage', 'Damage'], ['shields', 'Shields'],
+                          ['type', 'Type'], ['weakness', 'Weakness'], ['resistance', 'Resistance'],
+                          ['artist', 'Artist'], ['language', 'Language'], ['legal', 'Legal'], ['cost', 'Cost'], ['finish', 'Finish'],
+                        ]
+                        return (
+                          <>
+                            {chipEditor('abilities', 'Abilities', editAbilityDraft, setEditAbilityDraft, 'Type an ability, press Enter')}
+                            {chipEditor('traits', 'Traits', editTraitDraft, setEditTraitDraft, 'Type a trait, press Enter')}
                             {fields.map(([key, label]) => (
                               <label key={key} className="catalog-item-edit-field">
                                 <span>{label}</span>
