@@ -215,6 +215,7 @@ export default function CatalogItemPage({ scope }) {
   } = scope
   const [showFullDesc, setShowFullDesc] = React.useState(false)
   const [showDescModal, setShowDescModal] = React.useState(false)
+  const [editAbilityDraft, setEditAbilityDraft] = React.useState('')
   const [adminMenuOpen, setAdminMenuOpen] = React.useState(false)
   // Cap the Abilities card so its bottom never drops below the image column:
   // measure the media column and constrain the abilities box (scroll if longer).
@@ -704,6 +705,54 @@ export default function CatalogItemPage({ scope }) {
                         <span>Description</span>
                         <textarea rows={3} value={catalogItemEditValues.description || ''} onChange={e => setCatalogItemEditValues(v => ({ ...v, description: e.target.value }))} />
                       </label>
+                      {/* Card Metadata (dynamic_fields) — editable boxes pre-filled with
+                          whatever is typed in, empty otherwise. Abilities is multi-value
+                          (chips); the rest are text. Only shown for card categories. */}
+                      {(() => {
+                        const editCatName2 = catalogCategories.find(c => c.id === catalogItemEditValues.category_id)?.name || ''
+                        if (editCatName2 !== 'Trading Cards' && editCatName2 !== 'Sports Cards') return null
+                        const dyn = catalogItemEditValues.dynamic_fields || {}
+                        const setDyn = (key, val) => setCatalogItemEditValues(v => ({ ...v, dynamic_fields: { ...(v.dynamic_fields || {}), [key]: val } }))
+                        const chips = Array.isArray(dyn.abilities) ? dyn.abilities : (dyn.abilities ? [dyn.abilities] : [])
+                        const addAb = () => {
+                          const t = editAbilityDraft.trim()
+                          if (!t || chips.some(c => String(c).toLowerCase() === t.toLowerCase())) { setEditAbilityDraft(''); return }
+                          setDyn('abilities', [...chips, t]); setEditAbilityDraft('')
+                        }
+                        const fields = [
+                          ['unit_level', 'Unit Level'], ['evolves_from', 'Evolves From'], ['evolves_to', 'Evolves To'],
+                          ['attack', 'Attack'], ['health', 'Health'], ['damage', 'Damage'], ['shields', 'Shields'],
+                          ['type', 'Type'], ['weakness', 'Weakness'], ['resistance', 'Resistance'],
+                          ['artist', 'Artist'], ['language', 'Language'], ['legal', 'Legal'], ['cost', 'Cost'], ['finish', 'Finish'],
+                        ]
+                        return (
+                          <>
+                            <div className="catalog-item-edit-field catalog-item-edit-field--wide">
+                              <span>Abilities</span>
+                              {chips.length > 0 && (
+                                <div className="catalog-admin-subject-tags">
+                                  {chips.map((c, i) => (
+                                    <span key={i} className="catalog-admin-subject-tag">
+                                      <span style={{ fontWeight: 600 }}>{c}</span>
+                                      <button type="button" className="catalog-admin-subject-tag-remove" onClick={() => setDyn('abilities', chips.filter((_, j) => j !== i))}>✕</button>
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                              <div className="catalog-admin-inline-create">
+                                <input className="catalog-admin-inline-input" style={{ width: '100%' }} placeholder="Type an ability, press Enter" value={editAbilityDraft} onChange={e => setEditAbilityDraft(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addAb() } }} />
+                                <button type="button" className="catalog-admin-inline-save" disabled={!editAbilityDraft.trim()} onClick={addAb}>Add</button>
+                              </div>
+                            </div>
+                            {fields.map(([key, label]) => (
+                              <label key={key} className="catalog-item-edit-field">
+                                <span>{label}</span>
+                                <input type="text" value={dyn[key] || ''} onChange={e => setDyn(key, e.target.value)} />
+                              </label>
+                            ))}
+                          </>
+                        )
+                      })()}
                       <div className="catalog-item-edit-field catalog-item-edit-field--wide">
                         <span>Teams / Affiliation</span>
                         {catalogItemEditLookups.teams.length > 0 ? (

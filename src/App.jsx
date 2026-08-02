@@ -8655,7 +8655,7 @@ function App() {
       supabase.from('item_teams').select('team_id').eq('item_id', selectedCatalogItem.id),
       supabase.from('item_card_types').select('card_type_id').eq('item_id', selectedCatalogItem.id),
       supabase.from('item_subjects').select('subject_id, subjects(subject_name, subject_type)').eq('item_id', selectedCatalogItem.id),
-      supabase.from('items').select('rarity_id, mtg_card_type_id, retail_price, market_price, subset_id, series_id, manufacturer_id, publisher_id, item_type_id, subject, availability').eq('item_id', selectedCatalogItem.id).maybeSingle(),
+      supabase.from('items').select('rarity_id, mtg_card_type_id, retail_price, market_price, subset_id, series_id, manufacturer_id, publisher_id, item_type_id, subject, availability, dynamic_fields').eq('item_id', selectedCatalogItem.id).maybeSingle(),
       franchiseId
         ? supabase.from('teams').select('team_id, name').eq('franchise_id', franchiseId).order('name')
         : Promise.resolve({ data: [] }),
@@ -8680,6 +8680,9 @@ function App() {
       manufacturer_id: itemMtgMeta?.manufacturer_id || '',
       publisher_id: itemMtgMeta?.publisher_id || '',
       item_type_id: itemMtgMeta?.item_type_id || '',
+      // Card metadata (dynamic_fields) — loaded so the edit panel can show every
+      // value that's typed in, and empty boxes for the rest.
+      dynamic_fields: (itemMtgMeta?.dynamic_fields && typeof itemMtgMeta.dynamic_fields === 'object') ? itemMtgMeta.dynamic_fields : {},
       subject: itemMtgMeta?.subject || '',
       availability: itemMtgMeta?.availability || '',
       product_line_id: itemProductLines?.[0]?.product_line_id || '',
@@ -8715,6 +8718,8 @@ function App() {
         item_type_id:         v.item_type_id          || null,
         subject:              v.subject?.trim()       || null,
         availability:         v.availability?.trim()  || null,
+        // Card metadata — drop empty scalars and empty arrays so nothing blank is stored.
+        dynamic_fields:       Object.fromEntries(Object.entries(v.dynamic_fields || {}).filter(([, val]) => val !== '' && val != null && !(Array.isArray(val) && val.length === 0))),
         print_type_id:        v.print_type_id         || null,
         bricklink_id:         v.bricklink_id?.trim()         || null,
         rebrickable_fig_id:   v.rebrickable_fig_id?.trim()   || null,
