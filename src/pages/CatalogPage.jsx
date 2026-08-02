@@ -2084,7 +2084,58 @@ export default function CatalogPage({ scope }) {
                                         </div>
                                       )}
                                       <div className="bulk-import-editor-fields">
-                                        {selectedCatalogAdminCategoryName === 'Toys' ? (<>
+                                        {selectedCatalogAdminCategoryName === 'Trading Cards' ? (() => {
+                                          const df = cur.dynamic_fields || {}
+                                          const dfset = (k, v) => updateBulkRow(bulkImportIdx, { dynamic_fields: { ...(cur.dynamic_fields || {}), [k]: v } })
+                                          const abilities = Array.isArray(df.abilities) ? df.abilities.join('\n') : (df.abilities || '')
+                                          const cardMeta = [
+                                            ['unit_level', 'Unit Level'], ['evolves_from', 'Evolves From'], ['evolves_to', 'Evolves To'],
+                                            ['attack', 'Attack'], ['health', 'Health'], ['damage', 'Damage'], ['shields', 'Shields'],
+                                            ['type', 'Type'], ['traits', 'Traits'], ['weakness', 'Weakness'], ['resistance', 'Resistance'],
+                                            ['artist', 'Artist'], ['language', 'Language'], ['legal', 'Legal'], ['cost', 'Cost'], ['finish', 'Finish'],
+                                          ]
+                                          return (<>
+                                            {/* Cascading Taxonomy — Category/Subcategory are the upload-wide selection. */}
+                                            <div className="bulk-import-editor-field"><label>Category</label><input type="text" value={selectedCatalogAdminCategoryName} disabled /></div>
+                                            <div className="bulk-import-editor-field"><label>Subcategory</label><input type="text" value={(catalogAdminSubcategories.find(s => s.id === catalogAdminSubcategoryId)?.name) || ''} disabled /></div>
+                                            <div className="bulk-import-editor-field"><label>Franchise</label><input type="text" value={cur.franchise_name || ''} onChange={e => updateBulkRow(bulkImportIdx, { franchise_name: e.target.value })} /></div>
+                                            <div className="bulk-import-editor-field"><label>Subfranchise</label><input type="text" value={cur.subtheme_name || ''} onChange={e => updateBulkRow(bulkImportIdx, { subtheme_name: e.target.value })} /></div>
+                                            <div className="bulk-import-editor-field"><label>Property</label><input type="text" value={cur.property_names || ''} onChange={e => updateBulkRow(bulkImportIdx, { property_names: e.target.value })} /></div>
+                                            <div className="bulk-import-editor-field"><label>Item Type</label><input type="text" value={cur.brand_name || ''} onChange={e => updateBulkRow(bulkImportIdx, { brand_name: e.target.value })} /></div>
+                                            {/* Attached Facets */}
+                                            <div className="bulk-import-editor-field"><label>Collection</label><input type="text" value={df.collection || ''} onChange={e => dfset('collection', e.target.value)} /></div>
+                                            <div className="bulk-import-editor-field"><label>Subject</label><input type="text" value={cur.item_name || ''} onChange={e => updateBulkRow(bulkImportIdx, { item_name: e.target.value, subject_name: e.target.value, subjectObj: null })} /></div>
+                                            <div className="bulk-import-editor-field"><label>ID Number</label><input type="text" value={cur.card_number || ''} onChange={e => updateBulkRow(bulkImportIdx, { card_number: e.target.value })} /></div>
+                                            <div className="bulk-import-editor-field"><label>Publisher / Manufacturer</label><input type="text" value={cur.publisher_name || ''} onChange={e => updateBulkRow(bulkImportIdx, { publisher_name: e.target.value })} /></div>
+                                            {/* Item Metadata */}
+                                            <div className="bulk-import-editor-field bulk-import-editor-field--wide"><label>Description</label><textarea rows={2} value={cur.description || ''} onChange={e => updateBulkRow(bulkImportIdx, { description: e.target.value })} /></div>
+                                            <div className="bulk-import-editor-field"><label>Pieces</label><input type="number" min="1" value={cur.piece_count || ''} onChange={e => updateBulkRow(bulkImportIdx, { piece_count: e.target.value })} /></div>
+                                            <div className="bulk-import-editor-field"><label>Retail Price</label><input type="number" step="0.01" min="0" value={cur.retail_price || ''} onChange={e => updateBulkRow(bulkImportIdx, { retail_price: e.target.value })} /></div>
+                                            <div className="bulk-import-editor-field"><label>Release Year</label><input type="number" min="1900" max="2100" value={cur.release_year || ''} onChange={e => updateBulkRow(bulkImportIdx, { release_year: e.target.value })} /></div>
+                                            <div className="bulk-import-editor-field"><label>Availability</label><input type="text" value={cur.availability || ''} onChange={e => updateBulkRow(bulkImportIdx, { availability: e.target.value })} /></div>
+                                            <div className="bulk-import-editor-field"><label>Barcodes</label><input type="text" value={cur.upc || ''} onChange={e => updateBulkRow(bulkImportIdx, { upc: e.target.value })} /></div>
+                                            <div className="bulk-import-editor-field"><label>Includes</label><input type="text" value={cur.includes || ''} onChange={e => updateBulkRow(bulkImportIdx, { includes: e.target.value })} /></div>
+                                            <div className="bulk-import-editor-field"><label>Included In</label><input type="text" value={cur.parent_set_bricklink_id || ''} onChange={e => updateBulkRow(bulkImportIdx, { parent_set_bricklink_id: e.target.value })} /></div>
+                                            <div className="bulk-import-editor-field"><label>Rarity</label><input type="text" value={cur.rarity_name || ''} onChange={e => updateBulkRow(bulkImportIdx, { rarity_name: e.target.value })} /></div>
+                                            {/* Card Metadata (dynamic_fields) */}
+                                            {cardMeta.map(([k, label]) => (
+                                              <div key={k} className="bulk-import-editor-field"><label>{label}</label><input type="text" value={df[k] || ''} onChange={e => dfset(k, e.target.value)} /></div>
+                                            ))}
+                                            <div className="bulk-import-editor-field bulk-import-editor-field--wide"><label>Abilities <span className="catalog-admin-hint">(one per line)</span></label><textarea rows={2} value={abilities} onChange={e => dfset('abilities', e.target.value.split('\n').map(s => s.trim()).filter(Boolean))} /></div>
+                                            <div className="bulk-import-editor-field bulk-import-editor-field--wide"><label>Portrays <span className="catalog-admin-hint">(comma separated)</span></label><input type="text" value={cur.portrays_text || ''} onChange={e => updateBulkRow(bulkImportIdx, { portrays_text: e.target.value })} /></div>
+                                            <div className="bulk-import-editor-field bulk-import-editor-field--wide bulk-import-image-field">
+                                              <label>Photo</label>
+                                              <div className="bulk-import-image-row">
+                                                {(cur.image_preview || cur.image_url) && <img src={cur.image_preview || cur.image_url} alt="preview" className="bulk-import-image-thumb" onError={e => { e.target.style.display = 'none' }} />}
+                                                <div className="bulk-import-image-controls">
+                                                  <input type="text" placeholder="Image URL" value={cur.image_url || ''} onChange={e => updateBulkRow(bulkImportIdx, { image_url: e.target.value, image_file: null, image_preview: '' })} />
+                                                  <span className="bulk-import-image-or">or</span>
+                                                  <label className="bulk-import-image-upload-btn">Upload file<input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (!f) return; updateBulkRow(bulkImportIdx, { image_file: f, image_preview: URL.createObjectURL(f), image_url: '' }) }} /></label>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </>)
+                                        })() : selectedCatalogAdminCategoryName === 'Toys' ? (<>
                                           <div className="bulk-import-editor-field bulk-import-editor-field--wide">
                                             <label>Subject</label>
                                             <div className="catalog-admin-subject-search-wrap">

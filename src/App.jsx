@@ -10142,6 +10142,16 @@ function App() {
           if (plId) productLineIds.add(plId)
         }
       }
+      // Portrays (real people) → portrays lookup + item_portrays m2m.
+      const portrayIds = new Set()
+      if (row.portrays_text?.trim()) {
+        for (const nm of row.portrays_text.split(/[,;]/).map(s => s.trim()).filter(Boolean)) {
+          const { data: found } = await supabase.from('portrays').select('portray_id').ilike('name', nm).limit(1).maybeSingle()
+          let pid = found?.portray_id || null
+          if (!pid) { const { data: cr } = await supabase.from('portrays').insert({ name: nm }).select('portray_id').single(); pid = cr?.portray_id || null }
+          if (pid) portrayIds.add(pid)
+        }
+      }
       const itemId = newItemId()
       if (isLegoCategory && blId) bricklinkItemCache.set(blId, itemId)
       pending.push({
@@ -10186,7 +10196,11 @@ function App() {
           lego_set_number:      row.lego_set_number?.trim()    || null,
           retail_price:         row.retail_price !== '' && row.retail_price != null && Number.isFinite(Number(row.retail_price)) ? Number(row.retail_price) : null,
           subject_id:           subjectId                     || null,
+          // Universal spec fields (bulk parity with single-item add).
+          subject:              (row.subject_name || row.item_name)?.trim() || null,
+          availability:         row.availability?.trim()      || null,
         },
+        portrayIds: [...portrayIds],
       })
     }
 
@@ -10224,13 +10238,14 @@ function App() {
     }
 
     // ── PHASE 3: batch every child link for the inserted items in one pass each. ──
-    const subjectLinks = [], cardTypeLinks = [], teamLinks = [], propertyLinks = [], productLineLinks = []
+    const subjectLinks = [], cardTypeLinks = [], teamLinks = [], propertyLinks = [], productLineLinks = [], portrayLinks = []
     for (const c of okItems) {
       if (c.subjectId) subjectLinks.push({ item_id: c.itemId, subject_id: c.subjectId })
       for (const ctid of c.cardTypeIds) cardTypeLinks.push({ item_id: c.itemId, card_type_id: ctid })
       for (const tid of c.teamIds) teamLinks.push({ item_id: c.itemId, team_id: tid })
       for (const pid of c.propertyIds) propertyLinks.push({ item_id: c.itemId, property_id: pid })
       for (const plid of c.productLineIds) productLineLinks.push({ item_id: c.itemId, product_line_id: plid })
+      for (const prid of (c.portrayIds || [])) portrayLinks.push({ item_id: c.itemId, portray_id: prid })
     }
     const batchInsert = async (table, rows) => {
       for (let i = 0; i < rows.length; i += 500) {
@@ -10244,6 +10259,7 @@ function App() {
         .upsert(subjectFranchisePairs.slice(i, i + 500), { onConflict: 'subject_id,franchise_id' })
       if (error) console.error('subject_franchise bulk upsert error:', error)
     }
+    if (portrayLinks.length)     await batchInsert('item_portrays', portrayLinks)
     if (subjectLinks.length)     await batchInsert('item_subjects', subjectLinks)
     if (cardTypeLinks.length)    await batchInsert('item_card_types', cardTypeLinks)
     if (teamLinks.length)        await batchInsert('item_teams', teamLinks)
