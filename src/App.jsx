@@ -558,11 +558,15 @@ const CATALOG_DYNAMIC_FIELD_DEFINITIONS = {
   // NOTE: `legal` is NOT in this list — format legality is multi-value and lives
   // in the card_format_legality table (one row per legal format), not jsonb.
   'Trading Cards': [
+    { key: 'unit_level', label: 'Unit Level', type: 'text', aliases: ['level'] },
     { key: 'evolves_from', label: 'Evolves From', type: 'text', aliases: ['evolve_from', 'evolvesfrom'] },
     { key: 'evolves_to', label: 'Evolves To', type: 'text', aliases: ['evolve_to', 'evolvesto'] },
     { key: 'attack', label: 'Attack', type: 'text', aliases: ['attacks', 'power', 'card_power'] },
     { key: 'health', label: 'Health', type: 'text', aliases: ['hp', 'life'] },
+    { key: 'damage', label: 'Damage', type: 'text' },
+    { key: 'shields', label: 'Shields', type: 'text', aliases: ['shield'] },
     { key: 'type', label: 'Type', type: 'text', aliases: ['types', 'card_type'] },
+    { key: 'traits', label: 'Traits', type: 'text', aliases: ['trait', 'sub_types', 'subtypes'] },
     { key: 'abilities', label: 'Abilities', type: 'text', aliases: ['ability', 'effect'] },
     { key: 'weakness', label: 'Weakness', type: 'text', aliases: ['weaknesses'] },
     { key: 'resistance', label: 'Resistance', type: 'text', aliases: ['resistances'] },

@@ -2586,10 +2586,11 @@ export default function CatalogPage({ scope }) {
                       <p className="catalog-admin-section-title">Card Metadata</p>
                       <div className="catalog-admin-two-col">
                         {[
-                          ['evolves_from', 'Evolves From'], ['evolves_to', 'Evolves To'],
-                          ['attack', 'Attack'], ['health', 'Health'], ['type', 'Type'], ['abilities', 'Abilities'],
-                          ['weakness', 'Weakness'], ['resistance', 'Resistance'], ['artist', 'Artist'],
-                          ['language', 'Language'], ['legal', 'Legal'], ['cost', 'Cost'], ['finish', 'Finish'],
+                          ['unit_level', 'Unit Level'], ['evolves_from', 'Evolves From'], ['evolves_to', 'Evolves To'],
+                          ['attack', 'Attack'], ['health', 'Health'], ['damage', 'Damage'], ['shields', 'Shields'],
+                          ['type', 'Type'], ['traits', 'Traits'], ['abilities', 'Abilities'], ['weakness', 'Weakness'],
+                          ['resistance', 'Resistance'], ['artist', 'Artist'], ['language', 'Language'],
+                          ['legal', 'Legal'], ['cost', 'Cost'], ['finish', 'Finish'],
                         ].map(([key, label]) => {
                           // Abilities is multi-value → chip/tag input (jsonb array),
                           // reusing the Subject/Portrays tag pattern.
