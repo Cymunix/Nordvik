@@ -7,8 +7,14 @@ import { computeCollectorXp, setCompletionMilestoneXp, XP_RULES } from './levels
 // owned-copies counts; the async part (completed sales + set-completion
 // milestones) is queried once per user. Earners with no data source yet
 // (photos, complete details, event check-ins) contribute 0 until wired.
+const XP_HW_KEY = (userId) => `nv_xp_hw_${userId}`
+
 export default function useCollectorXp(userId, ownedCatalogItemCounts = {}) {
   const [asyncXp, setAsyncXp] = useState(0)
+  // XP high-water mark: XP is derived from live state, so removing an item
+  // would otherwise make it drop. We ratchet it so it can only ever rise —
+  // persisted per user so the mark survives reloads.
+  const [xpHighWater, setXpHighWater] = useState(0)
 
   const uniqueItems = Object.keys(ownedCatalogItemCounts).length
   let totalCopies = 0
@@ -71,5 +77,24 @@ export default function useCollectorXp(userId, ownedCatalogItemCounts = {}) {
   }, [userId])
 
   const baseXp = computeCollectorXp({ uniqueItems, duplicates })
-  return baseXp + asyncXp
+  const liveXp = baseXp + asyncXp
+
+  // Load the stored high-water mark whenever the user changes.
+  useEffect(() => {
+    if (!userId) { setXpHighWater(0); return }
+    let stored = 0
+    try { stored = Number(localStorage.getItem(XP_HW_KEY(userId))) || 0 } catch { stored = 0 }
+    setXpHighWater(stored)
+  }, [userId])
+
+  // Raise (never lower) the mark as live XP grows, and persist it.
+  useEffect(() => {
+    if (!userId) return
+    if (liveXp > xpHighWater) {
+      setXpHighWater(liveXp)
+      try { localStorage.setItem(XP_HW_KEY(userId), String(liveXp)) } catch { /* ignore */ }
+    }
+  }, [userId, liveXp, xpHighWater])
+
+  return Math.max(liveXp, xpHighWater)
 }
