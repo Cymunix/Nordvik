@@ -3,6 +3,7 @@
 export const XP_RULES = {
   uniqueItem: 50,        // each new unique item
   wishlistItem: 50,      // each item added to the wishlist
+  achievement: 1000,     // each achievement unlocked
   duplicate: 10,         // each duplicate copy
   firstPhoto: 50,        // adding the first photo to an item
   completeDetails: 25,   // completing an item's details
