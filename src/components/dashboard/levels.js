@@ -1,7 +1,7 @@
 // Collector XP / Level — a deterministic score derived from the user's REAL
 // activity (no stored XP, no fabricated numbers). Canonical earning rules:
 export const XP_RULES = {
-  uniqueItem: 50,        // each new unique item
+  uniqueItem: 100,       // each new unique item (first copy)
   wishlistItem: 50,      // each item added to the wishlist
   achievement: 1000,     // each achievement unlocked
   duplicate: 10,         // each duplicate copy

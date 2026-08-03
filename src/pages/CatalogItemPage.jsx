@@ -193,6 +193,7 @@ export default function CatalogItemPage({ scope }) {
     setCatalogSubjectId,
     setCatalogSubjectSearch,
     setCatalogSubsetId,
+    setCatalogSubthemeId,
     setCatalogTeamId,
     setCurrentScreen,
     setIsCatalogDetailTagLookupLoading,
@@ -1654,7 +1655,7 @@ export default function CatalogItemPage({ scope }) {
                         const d = selectedCatalogItem._details
                         const goTo = (filters) => {
                           setCatalogCategory('all'); setCatalogSubcategory(''); setCatalogFranchise('all')
-                          setCatalogBrandId(''); setCatalogSetId(''); setCatalogSubsetId('')
+                          setCatalogBrandId(''); setCatalogSetId(''); setCatalogSubsetId(''); setCatalogSubthemeId('')
                           setCatalogPrintTypeId(''); setCatalogCardTypeIds([]); setCatalogTeamId('')
                           setCatalogSubjectId(''); setCatalogSubjectSearch(''); setCatalogMinYear(''); setCatalogMaxYear('')
                           filters()
@@ -1664,6 +1665,10 @@ export default function CatalogItemPage({ scope }) {
                           { label: 'Category',      value: d.category,            onClick: d.category ? () => goTo(() => setCatalogCategory(d.category)) : null },
                           { label: 'Subcategory',   value: d.subcategory,         onClick: d.subcategory ? () => goTo(() => { setCatalogCategory(d.category || 'all'); setCatalogSubcategory(d.subcategory) }) : null },
                           { label: 'Franchise',     value: d.franchise,           onClick: d.franchise ? () => goTo(() => { setCatalogCategory(d.category || 'all'); setCatalogSubcategory(d.subcategory || ''); setCatalogFranchise(d.franchise_id || d.franchise || 'all') }) : null },
+                          // Subfranchise (subset_id → subsets.name), resolved onto the raw row.
+                          // Filters via catalogSubthemeId, which keys off items.subset_id
+                          // (NOT catalogSubsetId, which is the subcollectble_set_id "Subset").
+                          { label: 'Subfranchise',  value: catalogRawItemRow?.subfranchise_name || '', onClick: catalogRawItemRow?.subset_id ? () => goTo(() => { setCatalogCategory(d.category || 'all'); setCatalogSubcategory(d.subcategory || ''); setCatalogFranchise(d.franchise_id || d.franchise || 'all'); setCatalogSubthemeId(catalogRawItemRow.subset_id) }) : null },
                           { label: 'Brand',         value: d.brand,               onClick: d.brand_id ? () => goTo(() => { setCatalogCategory(d.category || 'all'); setCatalogSubcategory(d.subcategory || ''); setCatalogFranchise(d.franchise_id || d.franchise || 'all'); setCatalogBrandId(d.brand_id) }) : null },
                           // Universal Manufacturer / Publisher (from the raw item row; not in _details).
                           { label: 'Manufacturer',  value: catalogRawItemRow?.manufacturer_name || '', onClick: null },
@@ -1741,6 +1746,7 @@ export default function CatalogItemPage({ scope }) {
                           'manufacturer_id', 'publisher_id', 'manufacturer_name', 'publisher_name',
                           // Item Type / Availability / Portrays render as curated rows above.
                           'item_type_id', 'item_type_name', 'availability', 'portrays_names', 'subject',
+                          'subfranchise_name',
                         ])
                         // Friendlier labels for known dynamic card fields; anything
                         // else falls back to friendlyLabel().

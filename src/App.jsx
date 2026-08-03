@@ -370,11 +370,17 @@ const GRADING_SCALES = {
     { value: '9',   label: 'CGC 9 Mint',         shortLabel: 'MINT',      prestigeScore: 83,  description: 'Very well preserved with only minor imperfections.' },
     { value: '8.5', label: 'CGC 8.5 NM-MT',      shortLabel: 'NM-MT',     prestigeScore: 75,  description: 'Near Mint to Mint condition.' },
     { value: '8',   label: 'CGC 8 NM',           shortLabel: 'NM',        prestigeScore: 67,  description: 'Near Mint condition.' },
+    { value: '7.5', label: 'CGC 7.5 Fine/NM+',   shortLabel: 'FN/NM+',    prestigeScore: 62,  description: 'Half-grade between Fine/NM and NM.' },
     { value: '7',   label: 'CGC 7 Fine/NM',      shortLabel: 'FN/NM',     prestigeScore: 58,  description: 'Fine to Near Mint.' },
+    { value: '6.5', label: 'CGC 6.5 Fine+',       shortLabel: 'FINE+',     prestigeScore: 54,  description: 'Half-grade between Fine and Fine/NM.' },
     { value: '6',   label: 'CGC 6 Fine',          shortLabel: 'FINE',      prestigeScore: 50,  description: 'Fine condition.' },
+    { value: '5.5', label: 'CGC 5.5 Very Fine+',  shortLabel: 'VF+',       prestigeScore: 46,  description: 'Half-grade between Very Fine and Fine.' },
     { value: '5',   label: 'CGC 5 Very Fine',     shortLabel: 'VF',        prestigeScore: 42,  description: 'Very Fine condition.' },
+    { value: '4.5', label: 'CGC 4.5 Very Good+',  shortLabel: 'VG+',       prestigeScore: 37,  description: 'Half-grade between Very Good and Very Fine.' },
     { value: '4',   label: 'CGC 4 Very Good',     shortLabel: 'VG',        prestigeScore: 33,  description: 'Very Good condition.' },
+    { value: '3.5', label: 'CGC 3.5 Good+',        shortLabel: 'GOOD+',     prestigeScore: 29,  description: 'Half-grade between Good and Very Good.' },
     { value: '3',   label: 'CGC 3 Good',          shortLabel: 'GOOD',      prestigeScore: 25,  description: 'Good condition.' },
+    { value: '2.5', label: 'CGC 2.5 Fair+',        shortLabel: 'FAIR+',     prestigeScore: 21,  description: 'Half-grade between Fair and Good.' },
     { value: '2',   label: 'CGC 2 Fair',          shortLabel: 'FAIR',      prestigeScore: 17,  description: 'Fair condition — heavy wear.' },
     { value: '1.5', label: 'CGC 1.5 Fair/Poor',   shortLabel: 'FR/PR',     prestigeScore: 11,  description: 'Fair to Poor.' },
     { value: '1',   label: 'CGC 1 Poor',          shortLabel: 'POOR',      prestigeScore: 6,   description: 'Poor condition.' },
@@ -14114,10 +14120,12 @@ function App() {
       // not part of the item_details view). Attached to the raw row as *_name.
       let row = error ? null : data
       if (row) {
-        const [mfr, pub, itype, portrayLinks] = await Promise.all([
+        const [mfr, pub, itype, subfr, portrayLinks] = await Promise.all([
           row.manufacturer_id ? supabase.from('manufacturers').select('name').eq('manufacturer_id', row.manufacturer_id).maybeSingle() : Promise.resolve({ data: null }),
           row.publisher_id ? supabase.from('publishers').select('name').eq('publisher_id', row.publisher_id).maybeSingle() : Promise.resolve({ data: null }),
           row.item_type_id ? supabase.from('item_types').select('name').eq('item_type_id', row.item_type_id).maybeSingle() : Promise.resolve({ data: null }),
+          // Subfranchise (subset_id → subsets.name) — not in the item_details view.
+          row.subset_id ? supabase.from('subsets').select('name').eq('subset_id', row.subset_id).maybeSingle() : Promise.resolve({ data: null }),
           supabase.from('item_portrays').select('portrays(name)').eq('item_id', itemId),
         ])
         row = {
@@ -14125,6 +14133,7 @@ function App() {
           manufacturer_name: mfr?.data?.name || '',
           publisher_name: pub?.data?.name || '',
           item_type_name: itype?.data?.name || '',
+          subfranchise_name: subfr?.data?.name || '',
           portrays_names: (portrayLinks?.data || []).map(r => r.portrays?.name).filter(Boolean),
         }
       }
