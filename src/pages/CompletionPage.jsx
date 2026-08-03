@@ -28,6 +28,12 @@ const nordvikSceneVariant = (value = '') => {
   return { position: positions[n % positions.length], size: sizes[n % sizes.length] }
 }
 
+// Numeric key for card-number sorting: leading integer, blanks sort last.
+const cardNumberKey = (row) => {
+  const m = String(row?.card_number ?? '').match(/\d+/)
+  return m ? parseInt(m[0], 10) : Number.POSITIVE_INFINITY
+}
+
 const normaliseCompletionCategoryName = (value = '') =>
   String(value).trim().toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ')
 
@@ -132,7 +138,7 @@ export default function CompletionPage({
 
         // Count first, then pull every page of items in PARALLEL (sequential
         // paging was slow once the catalogue reached thousands of cards).
-        const itemCols = 'item_id, name, category_id, subcategory_id, franchise_id, series_id, subset_id, brand_id'
+        const itemCols = 'item_id, name, card_number, category_id, subcategory_id, franchise_id, series_id, subset_id, brand_id'
         const { count: itemCount, error: countErr } = await supabase
           .from('items').select('item_id', { count: 'exact', head: true }).in('category_id', ids)
         if (countErr) throw countErr
@@ -1348,8 +1354,14 @@ export default function CompletionPage({
       ) : currentCategory ? (
         <div className="completion-sheet-grid">
           {[...new Map(scoped.map(row => [String(row.item_id), row])).values()]
-            .sort((a, b) => itemName(a).localeCompare(itemName(b)))
-            .map((row, index) => {
+            .sort((a, b) => {
+              // Sort by card number (numeric-aware); blanks last, then by name.
+              const na = cardNumberKey(a), nb = cardNumberKey(b)
+              if (na !== nb) return na - nb
+              return String(a.card_number || '').localeCompare(String(b.card_number || ''), undefined, { numeric: true })
+                || itemName(a).localeCompare(itemName(b))
+            })
+            .map((row) => {
               const owned = isOwned(row)
               return (
                 <button
@@ -1358,7 +1370,7 @@ export default function CompletionPage({
                   className={`completion-sheet-item${owned ? ' owned' : ' missing'}`} style={{ width: '100%', minWidth: 0, height: '100%', boxSizing: 'border-box' }}
                   onClick={() => onOpenItem?.(row.item_id)}
                 >
-                  <span className="completion-sheet-num">{index + 1}</span>
+                  <span className="completion-sheet-num">{row.card_number ? `#${row.card_number}` : ''}</span>
                   <div className="completion-sheet-figure" style={{ width: '100%', aspectRatio: '1 / 1', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     {row.front_image_path ? <img src={row.front_image_path.startsWith('http') ? row.front_image_path : (supabase.storage.from('item-images').getPublicUrl(row.front_image_path).data?.publicUrl || '')} alt={itemName(row)} className="completion-sheet-img" style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} /> : <span className="completion-sheet-silhouette">?</span>}
                   </div>

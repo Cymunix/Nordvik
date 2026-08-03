@@ -766,7 +766,7 @@ h1 {
   color: #17233a;
   word-break: break-word;
 }
-.completion-sheet-item.missing .completion-sheet-info strong {
+.completion-sheet-item.owned .completion-sheet-info strong {
   color: rgba(226, 235, 246, 0.92);
 }
 
@@ -795,11 +795,11 @@ h1 {
   box-shadow: 0 3px 8px rgba(0,0,0,0.14);
 }
 
-.completion-sheet-item.missing {
+.completion-sheet-item.owned {
   background: rgba(255, 255, 255, 0.38);
 }
 
-.completion-sheet-item.missing:hover {
+.completion-sheet-item.owned:hover {
   background: rgba(255, 255, 255, 0.52);
 }
 
@@ -838,16 +838,16 @@ h1 {
   color: #a8bdd8;
 }
 
-.completion-sheet-item.missing .completion-sheet-figure {
+.completion-sheet-item.owned .completion-sheet-figure {
   background: rgba(200, 215, 240, 0.4);
 }
 
-.completion-sheet-item.missing .completion-sheet-img {
+.completion-sheet-item.owned .completion-sheet-img {
   opacity: 0.35;
   filter: grayscale(1);
 }
 
-.completion-sheet-item.missing .completion-sheet-silhouette {
+.completion-sheet-item.owned .completion-sheet-silhouette {
   color: rgba(140, 170, 210, 0.45);
 }
 
@@ -862,7 +862,7 @@ h1 {
   width: 100%;
 }
 
-.completion-sheet-item.missing .completion-sheet-label {
+.completion-sheet-item.owned .completion-sheet-label {
   color: rgba(255, 255, 255, 0.85);
 }
 
