@@ -28,10 +28,23 @@ const nordvikSceneVariant = (value = '') => {
   return { position: positions[n % positions.length], size: sizes[n % sizes.length] }
 }
 
-// Numeric key for card-number sorting: leading integer, blanks sort last.
-const cardNumberKey = (row) => {
-  const m = String(row?.card_number ?? '').match(/\d+/)
-  return m ? parseInt(m[0], 10) : Number.POSITIVE_INFINITY
+// Card-number sort ordering. Three buckets, in order:
+//   0 — plain numeric cards (1, 2, 10) → numeric order
+//   1 — lettered cards (MH1, P1) → after all numerics, grouped by their prefix
+//   2 — blank / no number → last
+// A leading letter is what makes a card "lettered"; a digit anywhere else
+// (e.g. MH1) must NOT pull it in among the numbers.
+const cardNumberSortKey = (row) => {
+  const cn = String(row?.card_number ?? '').trim()
+  if (!cn) return { group: 2, num: 0, str: '' }
+  if (/^\d/.test(cn)) return { group: 0, num: parseInt(cn.match(/^\d+/)[0], 10), str: cn }
+  return { group: 1, num: 0, str: cn }
+}
+const compareCardNumber = (a, b) => {
+  const ka = cardNumberSortKey(a), kb = cardNumberSortKey(b)
+  if (ka.group !== kb.group) return ka.group - kb.group
+  if (ka.group === 0 && ka.num !== kb.num) return ka.num - kb.num
+  return ka.str.localeCompare(kb.str, undefined, { numeric: true })
 }
 
 const normaliseCompletionCategoryName = (value = '') =>
@@ -1354,13 +1367,7 @@ export default function CompletionPage({
       ) : currentCategory ? (
         <div className="completion-sheet-grid">
           {[...new Map(scoped.map(row => [String(row.item_id), row])).values()]
-            .sort((a, b) => {
-              // Sort by card number (numeric-aware); blanks last, then by name.
-              const na = cardNumberKey(a), nb = cardNumberKey(b)
-              if (na !== nb) return na - nb
-              return String(a.card_number || '').localeCompare(String(b.card_number || ''), undefined, { numeric: true })
-                || itemName(a).localeCompare(itemName(b))
-            })
+            .sort((a, b) => compareCardNumber(a, b) || itemName(a).localeCompare(itemName(b)))
             .map((row) => {
               const owned = isOwned(row)
               return (
