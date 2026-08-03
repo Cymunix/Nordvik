@@ -452,12 +452,6 @@ export default function CatalogItemPage({ scope }) {
                         </section>
                       )
                     })()}
-                    <CardVariants
-                      itemId={selectedCatalogItem.id}
-                      cardNumber={selectedCatalogItem._details?.card_number}
-                      franchiseId={selectedCatalogItem._details?.franchise_id}
-                      onOpenItem={openCatalogItemById}
-                    />
                   </div>
 
                   {/* RIGHT — YOUR COLLECTION panel */}
@@ -2089,7 +2083,7 @@ export default function CatalogItemPage({ scope }) {
                           )}
 
                           {!hasAny ? (
-                            <p className="related-empty">No related items have been linked yet.</p>
+                            <p className="related-empty">No included or parent items have been linked yet.</p>
                           ) : (
                             <>
                               {catalogDetailIncludes.length > 0 && (
@@ -2110,6 +2104,9 @@ export default function CatalogItemPage({ scope }) {
                               )}
                             </>
                           )}
+                          {/* Variants (same card, different finish/printing) live
+                              here under Related Items, not on the main screen. */}
+                          <CardVariants itemId={selectedCatalogItem.id} onOpenItem={openCatalogItemById} />
                         </>
                       )
                     })()}

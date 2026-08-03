@@ -106,13 +106,15 @@ export default function CompletionPage({
       // Caribbean), so we keep the level and only hide it when it adds nothing.
       { key: 'subcategory', label: 'Game / Franchise', fields: ['subcategory'] },
       { key: 'franchise', label: 'Franchise', fields: ['franchise'] },
+      // Subfranchise (subset) groups cards within a game — e.g. Marvel splits into
+      // its subfranchises rather than dumping every Marvel card into one table.
+      // Auto-hidden when a game has no subfranchises (see the empty-level skip).
+      { key: 'subfranchise', label: 'Subfranchise', fields: ['subfranchise'] },
       // The SET (e.g. One Piece "Romance Dawn") is the natural completion unit; it
-      // lives in the Property field (item_properties). This is the key drill.
+      // lives in the Property field (item_properties).
       { key: 'property', label: 'Set', fields: ['property'] },
       { key: 'itemType', label: 'Item Type', fields: ['brand'] },
       { key: 'series', label: 'Series', fields: ['print_type', 'series'] },
-      // (Subfranchise / Product Line are single-value or empty for card games, so
-      // they aren't offered as drill levels here — Set is the meaningful unit.)
     ],
   }
 

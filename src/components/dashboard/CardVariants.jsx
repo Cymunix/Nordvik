@@ -1,68 +1,83 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabaseClient'
 
-// Card variant group: other catalogue items that share this card's base
-// Card Number within the SAME game (franchise). Never merges records — each
-// variant stays its own item; this just surfaces the sibling variants.
+// Card variant group: other catalogue items that are genuinely the SAME card in
+// a different finish/printing. The signal is strict — same item number AND same
+// name, scoped to the same Subfranchise (subset). Number alone links unrelated
+// cards (every set restarts numbering; #1 exists everywhere), and number+set
+// without the name links different cards that share a number, so both are wrong.
+// Never merges records — each variant stays its own item; this just surfaces the
+// siblings.
 function resolveImage(path) {
   if (!path) return ''
   return path.startsWith('http') ? path : (supabase.storage.from('item-images').getPublicUrl(path).data?.publicUrl || '')
 }
 
-export default function CardVariants({ itemId, cardNumber, franchiseId, onOpenItem }) {
+export default function CardVariants({ itemId, onOpenItem }) {
   const [variants, setVariants] = useState([])
   const [status, setStatus] = useState('loading')
+  const [cardNumber, setCardNumber] = useState('')
 
   useEffect(() => {
-    if (!cardNumber || !franchiseId) { setStatus('empty'); return }
+    if (!itemId) { setStatus('empty'); return }
     let cancelled = false
     ;(async () => {
       setStatus('loading')
-      const { data, error } = await supabase
-        .from('item_details')
-        .select('item_id, subject, description, front_image_path, print_type, card_number')
-        .eq('card_number', cardNumber)
-        .eq('franchise_id', franchiseId)
+      // This card's identity: number, name, and taxonomy scope.
+      const { data: self, error: selfErr } = await supabase
+        .from('items')
+        .select('item_id, name, card_number, subset_id, franchise_id')
+        .eq('item_id', itemId)
+        .single()
       if (cancelled) return
-      if (error) { setStatus('empty'); return }
-      let candidates = data || []
-      // A shared card number within a game is NOT enough: many games (e.g. Star
-      // Wars Pocketmodel) restart numbering in each set, so card "1" exists in
-      // every set. Real variants must ALSO belong to the same Property (the set).
-      // Two items are variants only if their Property sets match — share at least
-      // one Property, or both have none (the One Piece case, where the number is
-      // globally unique and variants carry no Property).
-      const ids = candidates.map((r) => r.item_id)
-      const propsByItem = new Map(ids.map((id) => [id, new Set()]))
-      if (ids.length > 1) {
-        const { data: links } = await supabase
-          .from('item_properties').select('item_id, property_id').in('item_id', ids)
-        for (const l of (links || [])) propsByItem.get(l.item_id)?.add(l.property_id)
-      }
-      const selfProps = propsByItem.get(itemId) || new Set()
-      const rows = candidates.filter((r) => {
-        if (r.item_id === itemId) return false
-        const p = propsByItem.get(r.item_id) || new Set()
-        if (selfProps.size === 0 && p.size === 0) return true
-        for (const x of selfProps) if (p.has(x)) return true
-        return false
-      })
-      setVariants(rows.map((r) => ({
-        id: r.item_id,
-        name: r.subject || r.description || 'Variant',
-        variant: r.print_type || '',
-        image: resolveImage(r.front_image_path),
-      })))
-      setStatus(rows.length ? 'ready' : 'empty')
+      if (selfErr || !self || !self.card_number || !self.name) { setStatus('empty'); return }
+      setCardNumber(self.card_number)
+
+      // Variants must share the item number AND the name. Scope to the same
+      // Subfranchise (subset) — anything lower in the taxonomy is already inside
+      // it. When the card has no Subfranchise, fall back to the Franchise as the
+      // outer bound so we still don't reach across unrelated games.
+      let query = supabase
+        .from('items')
+        .select('item_id')
+        .eq('card_number', self.card_number)
+        .eq('name', self.name)
+        .neq('item_id', itemId)
+      if (self.subset_id) query = query.eq('subset_id', self.subset_id)
+      else if (self.franchise_id) query = query.is('subset_id', null).eq('franchise_id', self.franchise_id)
+      else { setStatus('empty'); return }
+
+      const { data: matches, error } = await query
+      if (cancelled) return
+      if (error || !matches || !matches.length) { setStatus('empty'); return }
+
+      // Pull display fields (image / printing / subject) from the view.
+      const ids = matches.map((m) => m.item_id)
+      const { data: details } = await supabase
+        .from('item_details')
+        .select('item_id, subject, description, front_image_path, print_type')
+        .in('item_id', ids)
+      if (cancelled) return
+      const byId = new Map((details || []).map((d) => [d.item_id, d]))
+      setVariants(ids.map((id) => {
+        const d = byId.get(id) || {}
+        return {
+          id,
+          name: d.subject || d.description || self.name || 'Variant',
+          variant: d.print_type || '',
+          image: resolveImage(d.front_image_path),
+        }
+      }))
+      setStatus('ready')
     })()
     return () => { cancelled = true }
-  }, [itemId, cardNumber, franchiseId])
+  }, [itemId])
 
   if (status !== 'ready') return null
 
   return (
     <section className="catalog-variants" aria-label="Card variants">
-      <h3 className="catalog-variants-title">Variants · {cardNumber}</h3>
+      <h3 className="catalog-variants-title">Variants{cardNumber ? ` · ${cardNumber}` : ''}</h3>
       <div className="catalog-variants-grid">
         {variants.map((v) => (
           <button key={v.id} type="button" className="catalog-variant-card" onClick={() => onOpenItem?.(v.id)}>
