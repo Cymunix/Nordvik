@@ -255,6 +255,7 @@ export default function CatalogPage({ scope }) {
     isCatalogLoading,
     isCreatingCatalogItem,
     isPlatformAdmin,
+    setCurrentScreen,
     isSavingCatalogAdminInline,
     legoPropertyRegistry,
     ownedCatalogItemCounts,
@@ -1632,6 +1633,7 @@ export default function CatalogPage({ scope }) {
                     <button type="button" className={`bulk-import-tab${!bulkImportMode && !bulkPhotoMode ? ' bulk-import-tab-active' : ''}`} onClick={() => { setBulkImportMode(false); setBulkPhotoMode(false) }}>Single Item</button>
                     <button type="button" className={`bulk-import-tab${bulkImportMode && !bulkPhotoMode ? ' bulk-import-tab-active' : ''}`} onClick={() => { setBulkImportMode(true); setBulkPhotoMode(false); setBulkImportRows([]); setBulkImportIdx(0); setBulkImportSubjectSearch(''); setBulkImportSubjectResults([]) }}>Bulk Import</button>
                     <button type="button" className={`bulk-import-tab${bulkPhotoMode ? ' bulk-import-tab-active' : ''}`} onClick={() => { setBulkPhotoMode(true); setBulkImportMode(false); setBulkPhotoRows([]); setBulkPhotoIdx(0); setBulkPhotoManualSearch(''); setBulkPhotoPhase(null) }}>Bulk Photos</button>
+                    <button type="button" className="bulk-import-tab" onClick={() => setCurrentScreen('sheet_splitter')}>Sheet Split</button>
                   </div>
                   {bulkPhotoMode ? (
                     <div className="bulk-import-container">

@@ -26,6 +26,7 @@ import DashboardSidebar from './components/dashboard/DashboardSidebar'
 import { levelInfoFromXp } from './components/dashboard/levels'
 import useCollectorXp from './components/dashboard/useCollectorXp'
 import useUnlockedAchievements from './components/dashboard/useUnlockedAchievements'
+import SheetSplitterPage from './pages/SheetSplitterPage'
 import UnderConstruction from './components/dashboard/UnderConstruction'
 import LevelNotifications from './components/dashboard/LevelNotifications'
 
@@ -15178,6 +15179,7 @@ function App() {
           : currentScreen === 'plans' ? <PlansPage scope={pageScope} />
           : currentScreen === 'catalog_item' ? <CatalogItemPage scope={pageScope} />
           : currentScreen === 'profile' ? <ProfilePage scope={pageScope} />
+          : currentScreen === 'sheet_splitter' ? <SheetSplitterPage scope={pageScope} />
           : currentScreen === 'settings' ? <SettingsPage scope={pageScope} />
           : <CartPage scope={pageScope} />}
       </main>
