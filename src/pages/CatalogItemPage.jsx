@@ -1839,8 +1839,12 @@ export default function CatalogItemPage({ scope }) {
                                 value: Array.isArray(value)
                                   ? value.map(v => (v && typeof v === 'object') ? (v.name || v.text || JSON.stringify(v)) : v).join(', ')
                                   : (typeof value === 'object' ? JSON.stringify(value) : value),
-                                // Type and Finish are clickable → "find items like this".
-                                onClick: (key === 'type' || key === 'finish') && typeof value === 'string' && value.trim()
+                                // Traits render as individual clickable chips (search each one).
+                                chips: (key === 'traits' && Array.isArray(value))
+                                  ? value.filter(v => typeof v === 'string' && v.trim())
+                                  : null,
+                                // Type / Finish / Artist are clickable → "find items like this".
+                                onClick: (key === 'type' || key === 'finish' || key === 'artist') && typeof value === 'string' && value.trim()
                                   ? () => openCatalogAttrSearch(key, value, value)
                                   : null,
                               }))
@@ -1850,13 +1854,19 @@ export default function CatalogItemPage({ scope }) {
                         // fields, then every other populated field known for the item.
                         const visibleRows = [...rows, ...dynamicRows, ...extraRows]
                           .filter(row => hasValue(row.value) || (row.subjects && row.subjects.length > 0))
-                        return visibleRows.map(({ label, value, onClick, subjects }) => (
+                        return visibleRows.map(({ label, value, onClick, subjects, chips }) => (
                           <div key={label} className="catalog-detail-info-cell">
                             <span className="catalog-detail-info-label">{label}</span>
                             {subjects && subjects.length > 0 ? (
                               <div className="catalog-detail-subject-links">
                                 {subjects.map(s => (
                                   <button key={s.id} type="button" className="catalog-detail-info-value catalog-detail-meta-link" onClick={() => goTo(() => { setCatalogSubjectId(s.id); setCatalogSubjectSearch(s.name) })}>{s.name.toUpperCase()}</button>
+                                ))}
+                              </div>
+                            ) : chips && chips.length > 0 ? (
+                              <div className="catalog-detail-subject-links">
+                                {chips.map((c, i) => (
+                                  <button key={i} type="button" className="catalog-detail-info-value catalog-detail-meta-link" onClick={() => openCatalogAttrSearch('trait', c, c)}>{c}</button>
                                 ))}
                               </div>
                             ) : onClick ? (

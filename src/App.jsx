@@ -4133,7 +4133,9 @@ function App() {
         else if (kind === 'rarity') q = q.eq('rarity_id', value)
         else if (kind === 'type') q = q.eq('dynamic_fields->>type', value)
         else if (kind === 'finish') q = q.eq('dynamic_fields->>finish', value)
+        else if (kind === 'artist') q = q.eq('dynamic_fields->>artist', value)
         else if (kind === 'ability') q = q.contains('dynamic_fields', { abilities: [value] })
+        else if (kind === 'trait') q = q.contains('dynamic_fields', { traits: [value] })
         const { data } = await q.limit(5000)
         facetIdLists.push((data || []).map(r => r.item_id))
       }
