@@ -3313,13 +3313,31 @@ function App() {
             })
         })
     }
-    supabase.from('items').select('franchise_id').not('franchise_id', 'is', null)
-      .then(({ data: itemRows }) => {
-        const ids = [...new Set((itemRows || []).map((row) => row.franchise_id).filter(Boolean))]
-        if (!ids.length) { setCatalogFranchiseBrands([]); return }
-        loadCatalogFranchiseOptions(ids)
-      })
-  }, [currentScreen, catalogReloadToken])
+    // Scope the Franchise options to the selected Subcategory: only franchises
+    // linked to it (franchise_subcategory), falling back to franchises actually
+    // present on items in that subcategory. With no subcategory chosen, offer
+    // every franchise that appears on any item.
+    const subcatId = selectedCatalogSubcategoryRecord?.id || ''
+    ;(async () => {
+      let ids = []
+      if (subcatId) {
+        const { data: fsRows } = await supabase
+          .from('franchise_subcategory').select('franchise_id').eq('subcategory_id', subcatId)
+        ids = [...new Set((fsRows || []).map((r) => r.franchise_id).filter(Boolean))]
+        if (!ids.length) {
+          const { data: itemRows } = await supabase
+            .from('items').select('franchise_id').eq('subcategory_id', subcatId).not('franchise_id', 'is', null)
+          ids = [...new Set((itemRows || []).map((r) => r.franchise_id).filter(Boolean))]
+        }
+      } else {
+        const { data: itemRows } = await supabase
+          .from('items').select('franchise_id').not('franchise_id', 'is', null)
+        ids = [...new Set((itemRows || []).map((r) => r.franchise_id).filter(Boolean))]
+      }
+      if (!ids.length) { setCatalogFranchiseBrands([]); return }
+      loadCatalogFranchiseOptions(ids)
+    })()
+  }, [currentScreen, catalogReloadToken, selectedCatalogSubcategoryRecord])
 
   // Effect C: team + set cascade from franchise (set also depends on brand)
   useEffect(() => {

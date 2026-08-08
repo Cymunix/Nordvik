@@ -241,6 +241,7 @@ function mapCardToPayload(card, config) {
   // Description = flavour text (the italic quote); rules text goes to Abilities.
   const description = card.flavor_text || null
 
+  const rarity = card.rarity ? card.rarity.charAt(0).toUpperCase() + card.rarity.slice(1) : null
   const dynamicFields = {
     // ── Spec-aligned Trading Cards fields ──
     type: colorLabel(card.colors),                    // Type = colour ("White")
@@ -251,21 +252,21 @@ function mapCardToPayload(card, config) {
     artist: card.artist || null,                      // Artist
     language: languageName(card.lang),                // Language = "English"
     // legalities → drives the Legal field via the card_format_legality backfill.
+    // NOT shown as a row (the app hides it); it's data for the backfill only.
     legalities: legalObject(card.legalities),
     // ── Magic-specific extras (shown as labelled rows) ──
     type_line: card.type_line || null,                // full "Creature — Vampire"
-    rarity: card.rarity || null,
+    rarity,
     mana_value: card.cmc ?? null,
     power: card.power || null,
     toughness: card.toughness || null,
     loyalty: card.loyalty || null,
     keywords: normalizeArray(card.keywords),
     color_identity: normalizeArray(card.color_identity).map((c) => MTG_COLOR_NAMES[c] || c),
-    set: card.set_name || null,
     set_code: card.set || null,
-    collector_number: card.collector_number || null,
-    scryfall_uri: card.scryfall_uri || null,
-    image_url: card.image_uris?.normal || card.image_uris?.large || null,
+    // NOTE: `set` and `collector_number` are intentionally omitted — they are
+    // shown by the item's real Subfranchise and Card Number columns, so keeping
+    // them here would duplicate those rows. Links live in metadata, not here.
   }
 
   const metadata = {
@@ -277,6 +278,8 @@ function mapCardToPayload(card, config) {
     scryfall_tcgplayer_id: card.tcgplayer_id || null,
     scryfall_cardmarket_id: card.cardmarket_id || null,
     scryfall_mtgo_id: card.mtgo_id || null,
+    scryfall_uri: card.scryfall_uri || null,
+    image_url: card.image_uris?.normal || card.image_uris?.large || null,
     lang: card.lang || null,
     released_at: card.released_at || null,
     games: normalizeArray(card.games),
@@ -469,12 +472,28 @@ async function ingestCard(supabase, ctx, card, config) {
   findQ = cardNumber ? findQ.eq('card_number', cardNumber) : findQ.eq('name', cardName)
   const { data: existing } = await findQ.limit(1).maybeSingle()
 
+  let itemId
   if (existing) {
-    const { error } = await supabase.from('items').update(row).eq('item_id', existing.item_id)
+    itemId = existing.item_id
+    const { error } = await supabase.from('items').update(row).eq('item_id', itemId)
     if (error) throw error
   } else {
-    const { error } = await supabase.from('items').insert(row)
+    const { data: created, error } = await supabase.from('items').insert(row).select('item_id').single()
     if (error) throw error
+    itemId = created.item_id
+  }
+
+  // Attach the Scryfall card image as the front image (position 0). The app
+  // renders an http image_path directly, so we store the URL as-is. Only add it
+  // when the item has no front image yet, so we never clobber a real upload.
+  const imageUrl = card.image_uris?.normal || card.image_uris?.large
+    || card.card_faces?.[0]?.image_uris?.normal || card.card_faces?.[0]?.image_uris?.large || null
+  if (itemId && imageUrl) {
+    const { data: existingImg } = await supabase.from('item_images')
+      .select('item_image_id').eq('item_id', itemId).eq('position', 0).limit(1).maybeSingle()
+    if (!existingImg) {
+      await supabase.from('item_images').insert({ item_id: itemId, image_path: imageUrl, position: 0 })
+    }
   }
 }
 

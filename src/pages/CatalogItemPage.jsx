@@ -1689,7 +1689,9 @@ export default function CatalogItemPage({ scope }) {
                           ...(catalogDetailRarityId ? [
                             { label: 'Rarity', value: catalogRarities.find(r => r.id === catalogDetailRarityId)?.name ?? 'N/A', onClick: () => openCatalogAttrSearch('rarity', catalogDetailRarityId, catalogRarities.find(r => r.id === catalogDetailRarityId)?.name) },
                           ] : []),
-                          ...(catalogItemIsMtg ? [
+                          // Only claim the "Type" label when an MTG card type is actually
+                          // set; otherwise let dynamic_fields.type (the colour) show as Type.
+                          ...(catalogItemIsMtg && catalogDetailMtgCardTypeId ? [
                             { label: 'Type', value: catalogMtgCardTypes.find(t => t.id === catalogDetailMtgCardTypeId)?.name ?? 'N/A', onClick: null },
                           ] : []),
                           { label: 'Card Number',   value: d.card_number,         onClick: null },
@@ -1787,11 +1789,17 @@ export default function CatalogItemPage({ scope }) {
                         // dynamic_fields, so every subset naturally shows only its own
                         // populated properties — no empty One Piece stats on a Star Wars card.
                         const df = catalogRawItemRow?.dynamic_fields
-                        // Abilities is surfaced as its own card above (gameplay text),
-                        // so it must NOT also appear here in Full Information (metadata only).
+                        // Keys never shown as Full Information rows: Abilities has its
+                        // own card above; legalities is a raw {…} object that feeds the
+                        // Legal pills (not for display); links/duplicates (set, collector
+                        // number) are already shown by real columns or aren't useful here.
+                        const HIDDEN_DYNAMIC_KEYS = new Set([
+                          'abilities', 'legalities', 'image_url', 'scryfall_uri',
+                          'set', 'collector_number', 'identifier',
+                        ])
                         const dynamicRows = (df && typeof df === 'object' && !Array.isArray(df))
                           ? Object.entries(df)
-                              .filter(([key, value]) => key !== 'abilities' && hasValue(value) && !existingLabels.has(dynamicFieldLabels[key] || friendlyLabel(key)))
+                              .filter(([key, value]) => !HIDDEN_DYNAMIC_KEYS.has(key) && hasValue(value) && !existingLabels.has(dynamicFieldLabels[key] || friendlyLabel(key)))
                               .map(([key, value]) => ({
                                 label: dynamicFieldLabels[key] || friendlyLabel(key),
                                 // Multi-value arrays (Abilities, …) render as a
