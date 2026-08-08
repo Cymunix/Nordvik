@@ -4078,9 +4078,14 @@ function App() {
       const queryStart = (catalogPage - 1) * catalogPageSize
       const queryEnd = queryStart + catalogPageSize - 1
 
+      // Paginate/sort/count on the base `items` table, NOT the item_details VIEW:
+      // sorting/counting the view scans all its joined rows and hits the statement
+      // timeout on the full catalogue. `items` is a plain indexed table (fast). We
+      // fetch only the page's ids here, then hydrate display fields from the view
+      // by primary key below (a by-id view fetch pushes down and is fast).
       let itemsQuery = supabase
-        .from('item_details')
-        .select('*', { count: 'exact' })
+        .from('items')
+        .select('item_id', { count: 'exact' })
 
       if (selectedCatalogCategoryRecord) {
         itemsQuery = itemsQuery.eq('category_id', selectedCatalogCategoryRecord.id)
@@ -4312,9 +4317,10 @@ function App() {
       } else if (catalogSortKey === 'oldest_year') {
         itemsQuery = itemsQuery.order('release_year', { ascending: true, nullsFirst: false }).order('subject', { ascending: true })
       } else if (catalogSortKey === 'card_number_asc') {
-        itemsQuery = itemsQuery.order('card_number_int', { ascending: true, nullsFirst: false })
+        // items has no computed card_number_int (that's a view column); text sort.
+        itemsQuery = itemsQuery.order('card_number', { ascending: true, nullsFirst: false })
       } else if (catalogSortKey === 'card_number_desc') {
-        itemsQuery = itemsQuery.order('card_number_int', { ascending: false, nullsFirst: true })
+        itemsQuery = itemsQuery.order('card_number', { ascending: false, nullsFirst: true })
       } else {
         itemsQuery = itemsQuery.order('subject', { ascending: true })
       }
@@ -4345,6 +4351,14 @@ function App() {
       // column, so a hand-created card shows "Unnamed Item". Fetch them for just
       // this page's ids and prefer them for the display name.
       const pageIds = (itemsResult.data || []).map(r => r.item_id).filter(Boolean)
+      // Hydrate display fields from the item_details VIEW for just this page's ids.
+      // Filtering the view by primary key pushes the predicate down and is fast,
+      // unlike sorting/counting the whole view.
+      const detailById = {}
+      if (pageIds.length) {
+        const { data: detailRows } = await supabase.from('item_details').select('*').in('item_id', pageIds)
+        for (const d of (detailRows || [])) detailById[d.item_id] = d
+      }
       const realNameById = {}
       if (pageIds.length) {
         // Also pull subset_id (Subfranchise) + dynamic_fields (Finish) so card
@@ -4398,7 +4412,9 @@ function App() {
           front_image_path:   raw.front_image_path || null,
         }
       }
-      setCatalogItems((itemsResult.data || []).map(normalizeItem))
+      // Map in the page's sort order; hydrate each row from the view (fallback to
+      // a minimal row so an item missing from the view still renders its name).
+      setCatalogItems(pageIds.map((id) => normalizeItem(detailById[id] || { item_id: id })))
       setCatalogTotalItemCount(Number(itemsResult.count) || 0)
       setIsCatalogLoading(false)
     }
