@@ -51,20 +51,23 @@ export default function CardVariants({ itemId, onOpenItem }) {
       if (cancelled) return
       if (error || !matches || !matches.length) { setStatus('empty'); return }
 
-      // Pull display fields (image / printing / subject) from the view.
+      // Pull display fields (image / printing / subject) from the view, plus the
+      // finish from the raw item so foil vs nonfoil variants are distinguishable.
       const ids = matches.map((m) => m.item_id)
-      const { data: details } = await supabase
-        .from('item_details')
-        .select('item_id, subject, description, front_image_path, print_type')
-        .in('item_id', ids)
+      const [{ data: details }, { data: finishRows }] = await Promise.all([
+        supabase.from('item_details')
+          .select('item_id, subject, description, front_image_path, print_type').in('item_id', ids),
+        supabase.from('items').select('item_id, finish:dynamic_fields->>finish').in('item_id', ids),
+      ])
       if (cancelled) return
       const byId = new Map((details || []).map((d) => [d.item_id, d]))
+      const finishById = new Map((finishRows || []).map((r) => [r.item_id, r.finish]))
       setVariants(ids.map((id) => {
         const d = byId.get(id) || {}
         return {
           id,
           name: d.subject || d.description || self.name || 'Variant',
-          variant: d.print_type || '',
+          variant: finishById.get(id) || d.print_type || '',
           image: resolveImage(d.front_image_path),
         }
       }))

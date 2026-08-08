@@ -438,7 +438,10 @@ function getOrCreateSubset(supabase, ctx, franchiseId, name) {
   return p
 }
 
-// Insert (or update) one card as a real item row, mirroring the app's form.
+// Insert (or update) a card as real item rows, mirroring the app's form. Each
+// finish (foil / nonfoil / etched …) becomes its OWN item — a card printed in
+// both foil and nonfoil is two entries. They share name + number + subset, so
+// the app's CardVariants links them as variants in Related Items automatically.
 async function ingestCard(supabase, ctx, card, config) {
   const payload = mapCardToPayload(card, config)
   const franchiseId = await getOrCreateFranchise(supabase, ctx, payload.p_franchise_name)
@@ -446,53 +449,59 @@ async function ingestCard(supabase, ctx, card, config) {
   const subsetId = setName ? await getOrCreateSubset(supabase, ctx, franchiseId, setName) : null
 
   const df = payload.p_metadata?.dynamic_fields || {}
-  const dynamicFields = Object.fromEntries(
+  const baseDynamic = Object.fromEntries(
     Object.entries(df).filter(([, v]) => v !== '' && v != null && !(Array.isArray(v) && v.length === 0)),
   )
   const cardName = (card.name || '').trim() || 'Unknown Card'
   const cardNumber = (card.collector_number || '').trim() || null
-
-  const row = {
-    name: cardName,
-    subject: cardName,
-    category_id: ctx.categoryId,
-    subcategory_id: ctx.subcategoryId,
-    franchise_id: franchiseId,
-    subset_id: subsetId,
-    card_number: cardNumber,
-    description: payload.p_description || null,
-    release_year: payload.p_release_year ?? null,
-    dynamic_fields: dynamicFields,
-  }
-
-  // Idempotency: a set + collector number is unique; fall back to name when a
-  // card has no number. Update in place so re-runs refresh the mapping.
-  let findQ = supabase.from('items').select('item_id').eq('subcategory_id', ctx.subcategoryId)
-  if (subsetId) findQ = findQ.eq('subset_id', subsetId)
-  findQ = cardNumber ? findQ.eq('card_number', cardNumber) : findQ.eq('name', cardName)
-  const { data: existing } = await findQ.limit(1).maybeSingle()
-
-  let itemId
-  if (existing) {
-    itemId = existing.item_id
-    const { error } = await supabase.from('items').update(row).eq('item_id', itemId)
-    if (error) throw error
-  } else {
-    const { data: created, error } = await supabase.from('items').insert(row).select('item_id').single()
-    if (error) throw error
-    itemId = created.item_id
-  }
-
-  // Attach the Scryfall card image as the front image (position 0). The app
-  // renders an http image_path directly, so we store the URL as-is. Only add it
-  // when the item has no front image yet, so we never clobber a real upload.
   const imageUrl = card.image_uris?.normal || card.image_uris?.large
     || card.card_faces?.[0]?.image_uris?.normal || card.card_faces?.[0]?.image_uris?.large || null
-  if (itemId && imageUrl) {
-    const { data: existingImg } = await supabase.from('item_images')
-      .select('item_image_id').eq('item_id', itemId).eq('position', 0).limit(1).maybeSingle()
-    if (!existingImg) {
-      await supabase.from('item_images').insert({ item_id: itemId, image_path: imageUrl, position: 0 })
+
+  const finishes = normalizeArray(card.finishes).filter((f) => typeof f === 'string' && f.trim())
+  const finishList = finishes.length ? finishes : ['nonfoil']
+
+  for (const finishRaw of finishList) {
+    const finish = finishRaw.charAt(0).toUpperCase() + finishRaw.slice(1)
+    const dynamicFields = { ...baseDynamic, finish }
+    const row = {
+      name: cardName,
+      subject: cardName,
+      category_id: ctx.categoryId,
+      subcategory_id: ctx.subcategoryId,
+      franchise_id: franchiseId,
+      subset_id: subsetId,
+      card_number: cardNumber,
+      description: payload.p_description || null,
+      release_year: payload.p_release_year ?? null,
+      dynamic_fields: dynamicFields,
+    }
+
+    // Idempotency: set + collector number + finish is unique (fall back to name
+    // when there's no number). Update in place so re-runs refresh the mapping.
+    let findQ = supabase.from('items').select('item_id')
+      .eq('subcategory_id', ctx.subcategoryId).eq('dynamic_fields->>finish', finish)
+    if (subsetId) findQ = findQ.eq('subset_id', subsetId)
+    findQ = cardNumber ? findQ.eq('card_number', cardNumber) : findQ.eq('name', cardName)
+    const { data: existing } = await findQ.limit(1).maybeSingle()
+
+    let itemId
+    if (existing) {
+      itemId = existing.item_id
+      const { error } = await supabase.from('items').update(row).eq('item_id', itemId)
+      if (error) throw error
+    } else {
+      const { data: created, error } = await supabase.from('items').insert(row).select('item_id').single()
+      if (error) throw error
+      itemId = created.item_id
+    }
+
+    // Attach the Scryfall image as the front image (position 0), only if none yet.
+    if (itemId && imageUrl) {
+      const { data: existingImg } = await supabase.from('item_images')
+        .select('item_image_id').eq('item_id', itemId).eq('position', 0).limit(1).maybeSingle()
+      if (!existingImg) {
+        await supabase.from('item_images').insert({ item_id: itemId, image_path: imageUrl, position: 0 })
+      }
     }
   }
 }
