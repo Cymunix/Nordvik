@@ -453,3 +453,43 @@
   color: var(--nv-cyan, #4cc7e6);
   text-decoration: underline;
 }
+
+/* ── Format legality card (right rail) ── */
+.catalog-detail-screen .catalog-legality-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.catalog-detail-screen .catalog-legality-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 11px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(120, 150, 190, 0.10);
+  font-size: 13px;
+}
+.catalog-detail-screen .catalog-legality-name {
+  color: var(--nv-ink-dim, #9fb0c6);
+}
+.catalog-detail-screen .catalog-legality-state {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 2px 9px;
+  border-radius: 999px;
+}
+.catalog-detail-screen .catalog-legality-row.is-legal .catalog-legality-state {
+  color: #4fd39a;
+  background: rgba(52, 178, 123, 0.14);
+}
+.catalog-detail-screen .catalog-legality-row.is-legal .catalog-legality-name {
+  color: #e8eef6;
+}
+.catalog-detail-screen .catalog-legality-row.is-not .catalog-legality-state {
+  color: #8a97a8;
+  background: rgba(138, 151, 168, 0.12);
+}

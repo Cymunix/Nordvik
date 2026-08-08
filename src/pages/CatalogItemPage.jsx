@@ -1572,9 +1572,41 @@ export default function CatalogItemPage({ scope }) {
                       </div>
                     )}
                   </article>
+
+                  {/* Format legality — which play formats the card is legal in.
+                      Driven by dynamic_fields.legalities (the importer stores the
+                      legal formats); absence of a format = Not Legal. */}
+                  {(() => {
+                    const leg = catalogRawItemRow?.dynamic_fields?.legalities
+                    if (!leg || typeof leg !== 'object' || Array.isArray(leg)) return null
+                    const FORMATS = [
+                      ['standard', 'Standard'], ['pioneer', 'Pioneer'], ['modern', 'Modern'],
+                      ['legacy', 'Legacy'], ['vintage', 'Vintage'], ['commander', 'Commander'],
+                      ['pauper', 'Pauper'], ['brawl', 'Brawl'], ['historic', 'Historic'],
+                      ['timeless', 'Timeless'], ['alchemy', 'Alchemy'], ['oathbreaker', 'Oathbreaker'],
+                      ['penny', 'Penny Dreadful'], ['duel', 'Duel Commander'],
+                    ]
+                    const isLegal = (v) => v === true || v === 'legal' || v === 'restricted'
+                    return (
+                      <article className="catalog-card catalog-detail-section catalog-detail-legality">
+                        <h3>Format Legality</h3>
+                        <div className="catalog-legality-grid">
+                          {FORMATS.map(([key, label]) => {
+                            const legal = isLegal(leg[key])
+                            return (
+                              <div key={key} className={`catalog-legality-row ${legal ? 'is-legal' : 'is-not'}`}>
+                                <span className="catalog-legality-name">{label}</span>
+                                <span className="catalog-legality-state">{legal ? 'Legal' : 'Not Legal'}</span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </article>
+                    )
+                  })()}
                   </section>
 
-                  
+
 
                     {marketplaceCompletionMatches.length > 0 && ownershipCount === 0 ? (
                       <section className="catalog-card catalog-detail-section">
