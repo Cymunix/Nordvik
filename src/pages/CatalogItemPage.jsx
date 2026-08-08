@@ -1484,13 +1484,13 @@ export default function CatalogItemPage({ scope }) {
 
                     <style>{`
                       .catalog-detail-empty-state {
-                        min-height: 150px;
+                        min-height: 96px;
                         display: flex;
                         flex-direction: column;
                         align-items: center;
                         justify-content: center;
                         text-align: center;
-                        padding: 24px;
+                        padding: 18px;
                         border: 1px dashed rgba(11,42,99,.18);
                         border-radius: 10px;
                         background: rgba(255,255,255,.38);

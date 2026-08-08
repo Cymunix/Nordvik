@@ -454,22 +454,22 @@
   text-decoration: underline;
 }
 
-/* ── Format legality card (right rail) ── */
+/* ── Format legality card (right rail) — compact 2-column grid ── */
 .catalog-detail-screen .catalog-legality-grid {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 6px;
 }
 .catalog-detail-screen .catalog-legality-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 7px 11px;
+  gap: 8px;
+  padding: 6px 9px;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(120, 150, 190, 0.10);
-  font-size: 13px;
+  font-size: 12px;
 }
 .catalog-detail-screen .catalog-legality-name {
   color: var(--nv-ink-dim, #9fb0c6);
