@@ -1315,15 +1315,24 @@ export default function CatalogPage({ scope }) {
                                 ) : null}
                               </div>
                               <div className="catalog-item-content">
-                                <h3>{isMusic ? franchiseName : (item.name || 'Untitled item')}</h3>
-                                <p className="catalog-item-meta">{isMusic ? (item.name || 'Untitled item') : franchiseName}</p>
-                                {isMusic
-                                  ? (catalogSubcategoryById[item.subcategory_id] ? <p className="catalog-item-brand">Format: {catalogSubcategoryById[item.subcategory_id]}</p> : null)
-                                  : isCard
-                                    ? (subsetName ? <p className="catalog-item-brand">Subset: {subsetName}</p> : null)
-                                    : (franchiseBrandName ? <p className="catalog-item-brand">Franchise: {franchiseBrandName}</p> : null)}
-                                {brandName ? <p className="catalog-item-brand">{itemCardLabels.brand}: {brandName}</p> : null}
-                                {item.release_year ? <p className="catalog-item-year">{item.release_year}</p> : null}
+                                {isCard ? (
+                                  <>
+                                    <h3>{item.name || 'Untitled item'}{item.card_number ? <span className="catalog-item-num"> #{item.card_number}</span> : null}</h3>
+                                    {item.finish ? <p className="catalog-item-meta">{item.finish}</p> : null}
+                                    {item._subfranchise_name ? <p className="catalog-item-brand">{item._subfranchise_name}</p> : null}
+                                    {item.release_year ? <p className="catalog-item-year">{item.release_year}</p> : null}
+                                  </>
+                                ) : (
+                                  <>
+                                    <h3>{isMusic ? franchiseName : (item.name || 'Untitled item')}</h3>
+                                    <p className="catalog-item-meta">{isMusic ? (item.name || 'Untitled item') : franchiseName}</p>
+                                    {isMusic
+                                      ? (catalogSubcategoryById[item.subcategory_id] ? <p className="catalog-item-brand">Format: {catalogSubcategoryById[item.subcategory_id]}</p> : null)
+                                      : (franchiseBrandName ? <p className="catalog-item-brand">Franchise: {franchiseBrandName}</p> : null)}
+                                    {brandName ? <p className="catalog-item-brand">{itemCardLabels.brand}: {brandName}</p> : null}
+                                    {item.release_year ? <p className="catalog-item-year">{item.release_year}</p> : null}
+                                  </>
+                                )}
                               </div>
                             </article>
                           )

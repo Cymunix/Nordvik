@@ -341,3 +341,10 @@
 .catalog-screen .catalog-admin-subject-tag-remove {
   background: none; border: none; color: var(--nv-ink-dim, #93a4bd); cursor: pointer; font-size: 0.8rem;
 }
+
+/* Card number beside the name on catalogue tiles */
+.catalog-item-content h3 .catalog-item-num {
+  color: var(--nv-ink-dim, #8ba0bd);
+  font-weight: 600;
+  font-size: 0.92em;
+}

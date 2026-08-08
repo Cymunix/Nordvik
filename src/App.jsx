@@ -4345,8 +4345,22 @@ function App() {
       const pageIds = (itemsResult.data || []).map(r => r.item_id).filter(Boolean)
       const realNameById = {}
       if (pageIds.length) {
-        const { data: nameRows } = await supabase.from('items').select('item_id, name, subject').in('item_id', pageIds)
-        for (const r of (nameRows || [])) realNameById[r.item_id] = { name: na(r.name), subject: na(r.subject) }
+        // Also pull subset_id (Subfranchise) + dynamic_fields (Finish) so card
+        // tiles can show "<name> #<number>", the finish, and the subfranchise.
+        const { data: nameRows } = await supabase.from('items')
+          .select('item_id, name, subject, subset_id, dynamic_fields').in('item_id', pageIds)
+        const subsetNameById = {}
+        const subIds = [...new Set((nameRows || []).map(r => r.subset_id).filter(Boolean))]
+        if (subIds.length) {
+          const { data: subs } = await supabase.from('subsets').select('subset_id, name').in('subset_id', subIds)
+          for (const s of (subs || [])) subsetNameById[s.subset_id] = s.name
+        }
+        for (const r of (nameRows || [])) realNameById[r.item_id] = {
+          name: na(r.name),
+          subject: na(r.subject),
+          finish: na(r.dynamic_fields?.finish),
+          subfranchise: subsetNameById[r.subset_id] || '',
+        }
       }
       const normalizeItem = (raw) => {
         const real          = realNameById[raw.item_id] || {}
@@ -4371,8 +4385,10 @@ function App() {
           print_count:        raw.print_count,
           metadata:           {},
           dynamic_fields:     {},
+          finish:             real.finish || '',
           _subject_name:      subjectName,
           _set_name:          setName,
+          _subfranchise_name: real.subfranchise || '',
           _print_type:        printType,
           _brand_name:        brandName,
           _franchise_name:    franchiseName,
