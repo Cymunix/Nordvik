@@ -3250,16 +3250,21 @@ function App() {
 
   useEffect(() => {
     if (currentScreen !== 'catalog') return
-    supabase
-      .from('items')
-      .select('category_id')
-      .not('category_id', 'is', null)
-      .limit(7000)
-      .then(({ data }) => {
-        setCatalogCategoryIdsWithItems([
-          ...new Set((data || []).map((row) => row.category_id).filter(Boolean)),
-        ])
-      })
+    // Which categories actually have items. Sampling the first N items misses
+    // categories once one category dominates the dataset (e.g. Trading Cards),
+    // so probe each category directly — there are only a handful, and a
+    // "limit 1" existence check per category is fast in parallel.
+    let cancelled = false
+    ;(async () => {
+      const { data: cats } = await supabase.from('categories').select('category_id')
+      const ids = (cats || []).map((c) => c.category_id).filter(Boolean)
+      const checks = await Promise.all(ids.map(async (id) => {
+        const { data } = await supabase.from('items').select('item_id').eq('category_id', id).limit(1)
+        return { id, has: (data || []).length > 0 }
+      }))
+      if (!cancelled) setCatalogCategoryIdsWithItems(checks.filter((c) => c.has).map((c) => c.id))
+    })()
+    return () => { cancelled = true }
   }, [currentScreen, catalogReloadToken])
 
   useEffect(() => {
@@ -3269,17 +3274,19 @@ function App() {
       setCatalogSubcategoryIdsWithItems([])
       return
     }
-    supabase
-      .from('items')
-      .select('subcategory_id')
-      .eq('category_id', categoryId)
-      .not('subcategory_id', 'is', null)
-      .limit(7000)
-      .then(({ data }) => {
-        setCatalogSubcategoryIdsWithItems([
-          ...new Set((data || []).map((row) => row.subcategory_id).filter(Boolean)),
-        ])
-      })
+    // Same as categories: probe each subcategory for items rather than sampling
+    // the first N rows (which misses subcategories when one dominates).
+    let cancelled = false
+    ;(async () => {
+      const { data: subs } = await supabase.from('subcategories').select('subcategory_id').eq('category_id', categoryId)
+      const ids = (subs || []).map((s) => s.subcategory_id).filter(Boolean)
+      const checks = await Promise.all(ids.map(async (id) => {
+        const { data } = await supabase.from('items').select('item_id').eq('subcategory_id', id).limit(1)
+        return { id, has: (data || []).length > 0 }
+      }))
+      if (!cancelled) setCatalogSubcategoryIdsWithItems(checks.filter((c) => c.has).map((c) => c.id))
+    })()
+    return () => { cancelled = true }
   }, [currentScreen, selectedCatalogCategoryRecord])
 
   // Effect B: global franchise options from actual items.
